@@ -26,6 +26,7 @@ import {
   Plus,
   Receipt,
   Search,
+  ShieldCheck,
   Sparkles,
   Gauge,
   Settings2,
@@ -122,6 +123,9 @@ const DRAWER_GROUPS: {
       { to: '/inspekcija', label: 'Inspekcija', icon: ClipboardCheck },
       { to: '/izvjestaj', label: 'Godišnji izvještaj', icon: FileText },
       { to: '/profil', label: 'Profil i gospodarstvo', icon: UserCog },
+      // §56 — export and account deletion. In the drawer rather than buried in the profile form,
+      // because a right nobody can find is a right on paper only.
+      { to: '/moji-podaci', label: 'Moji podaci', icon: ShieldCheck },
     ],
   },
 ]

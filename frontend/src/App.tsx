@@ -1,5 +1,5 @@
 import { lazy } from 'react'
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
 import { BrandMark } from '@/components/BrandMark'
 import { useAuth } from '@/auth/AuthContext'
@@ -39,6 +39,7 @@ import { InventoryItemPage } from '@/pages/InventoryItem'
 import { LabTestDetailPage } from '@/pages/LabTestDetail'
 import { LabTestNewPage } from '@/pages/LabTestNew'
 import { LoginPage } from '@/pages/Login'
+import { MyDataPage } from '@/pages/MyData'
 import { NotificationsPage } from '@/pages/Notifications'
 import { ObligationDetailPage } from '@/pages/ObligationDetail'
 import { ObligationsPage } from '@/pages/Obligations'
@@ -92,6 +93,11 @@ const PublicJarPage = lazy(() => import('@/pages/PublicJar').then((m) => ({ defa
 const AnnualReportPage = lazy(() =>
   import('@/pages/AnnualReport').then((m) => ({ default: m.AnnualReportPage })),
 )
+// §65, §66 — written for someone who does not have the app yet. A beekeeper opening the installed
+// PWA to record a visit should not download the sales pitch on the way to the dashboard.
+const LandingPage = lazy(() => import('@/pages/Landing').then((m) => ({ default: m.LandingPage })))
+// §56 — read before signing up, and reachable from the footer without an account.
+const PrivacyPage = lazy(() => import('@/pages/Privacy').then((m) => ({ default: m.PrivacyPage })))
 
 function BootSplash() {
   return (
@@ -105,8 +111,23 @@ function BootSplash() {
 /** Blocks the app shell until the session is known, so a signed-in reload never flashes /prijava. */
 function RequireAuth() {
   const { current, loading } = useAuth()
+  const { pathname } = useLocation()
+
   if (loading) return <BootSplash />
-  if (!current) return <Navigate to="/prijava" replace />
+  if (!current) {
+    // §65 — the root address belongs to whoever asks for it. A stranger typing the domain is
+    // reading about the application and gets the landing page; a beekeeper who asked for
+    // /kosnice/12 wanted that specific screen and gets the login form, because that is where the
+    // journey continues after signing in.
+    if (pathname === '/') {
+      return (
+        <LazyRoute>
+          <LandingPage />
+        </LazyRoute>
+      )
+    }
+    return <Navigate to="/prijava" replace />
+  }
   return <Outlet />
 }
 
@@ -126,6 +147,11 @@ export function App() {
           beyond what the public endpoint returns. */}
       <Route path="/staklenka/:token" element={<LazyRoute><PublicJarPage /></LazyRoute>} />
 
+      {/* §56 — outside both guards for the same reason: someone deciding whether to open an
+          account has to be able to read what happens to their data first, and a signed-in
+          beekeeper reaches the same page from the drawer. */}
+      <Route path="/privatnost" element={<LazyRoute><PrivacyPage /></LazyRoute>} />
+
       <Route element={<RequireAnonymous />}>
         <Route path="/prijava" element={<LoginPage />} />
         <Route path="/registracija" element={<RegisterPage />} />
@@ -135,6 +161,8 @@ export function App() {
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
           <Route path="/profil" element={<ProfilePage />} />
+          {/* §56 — GDPR čl. 15, 17 and 20, as two buttons. */}
+          <Route path="/moji-podaci" element={<MyDataPage />} />
 
           <Route path="/pcelinjaci" element={<ApiariesPage />} />
           <Route path="/pcelinjaci/novi" element={<ApiaryFormPage />} />

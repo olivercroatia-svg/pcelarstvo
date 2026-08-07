@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -204,6 +205,14 @@ export function ProfilePage() {
       <Button type="submit" size="lg" className="w-full" disabled={isSubmitting || !isDirty}>
         {isSubmitting ? 'Spremam…' : 'Spremi promjene'}
       </Button>
+
+      {/* §56 — the profile is where someone comes to change their details, so it is also where
+          they will look for what else is held about them. */}
+      <p className="text-center text-sm text-muted-foreground">
+        <Link to="/moji-podaci" className="text-primary underline-offset-4 hover:underline">
+          Preuzimanje i brisanje podataka
+        </Link>
+      </p>
     </form>
   )
 }
