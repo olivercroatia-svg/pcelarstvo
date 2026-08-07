@@ -6,38 +6,18 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ChoiceGroup, Stepper } from '@/components/ui/choice'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 import { useToast } from '@/components/ui/toast'
+import { PhotoCaption } from '@/components/PhotoCaption'
 import { uploadPhoto } from '@/lib/image'
+import {
+  BROOD_OPTIONS,
+  QUEEN_OPTIONS,
+  STORES_OPTIONS,
+  STRENGTH_OPTIONS,
+  SWARM_OPTIONS,
+} from '@/lib/inspectionOptions'
 import { useOutbox } from '@/lib/outbox'
-import type { Brood, Hive, Observation, QueenState, Stores, Strength, Swarming } from '@/lib/types'
+import type { Hive, Observation } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-
-const STRENGTH_OPTIONS = [
-  { value: 'weak' as Strength, label: 'Slaba', tone: 'warning' as const },
-  { value: 'medium' as Strength, label: 'Srednja' },
-  { value: 'strong' as Strength, label: 'Jaka' },
-  { value: 'very_strong' as Strength, label: 'Vrlo jaka' },
-]
-const BROOD_OPTIONS = [
-  { value: 'none' as Brood, label: 'Nema', tone: 'warning' as const },
-  { value: 'little' as Brood, label: 'Malo' },
-  { value: 'normal' as Brood, label: 'Normalno' },
-  { value: 'plenty' as Brood, label: 'Puno' },
-]
-const QUEEN_OPTIONS = [
-  { value: 'seen' as QueenState, label: 'Viđena', tone: 'ok' as const },
-  { value: 'eggs' as QueenState, label: 'Jaja prisutna', tone: 'ok' as const },
-  { value: 'not_found' as QueenState, label: 'Nije pronađena', tone: 'critical' as const },
-]
-const SWARM_OPTIONS = [
-  { value: 'none' as Swarming, label: 'Nema znakova', tone: 'ok' as const },
-  { value: 'cells' as Swarming, label: 'Matičnjaci', tone: 'warning' as const },
-  { value: 'high_risk' as Swarming, label: 'Visok rizik', tone: 'critical' as const },
-]
-const STORES_OPTIONS = [
-  { value: 'poor' as Stores, label: 'Slabe', tone: 'warning' as const },
-  { value: 'good' as Stores, label: 'Dobre' },
-  { value: 'excellent' as Stores, label: 'Odlične' },
-]
 
 /**
  * §12 + §59 — the screen the whole app is judged by.
@@ -62,6 +42,8 @@ export function InspectionPage() {
   const [saving, setSaving] = useState(false)
   const [photoCount, setPhotoCount] = useState(0)
   const [uploading, setUploading] = useState(false)
+  // §44 — the picked file waits here while the beekeeper writes or accepts a caption.
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null)
 
   if (loading) return <LoadingState />
   if (error) return <ErrorState message={error} />
@@ -103,13 +85,14 @@ export function InspectionPage() {
     }
   }
 
-  async function addPhoto(file: File) {
+  async function addPhoto(file: File, caption: string | null) {
     setUploading(true)
     try {
       // Photos need a connection — they attach to the hive rather than the queued inspection,
       // which keeps the offline path to a single small JSON write.
-      await uploadPhoto(file, 'hive', hive.id)
+      await uploadPhoto(file, 'hive', hive.id, caption)
       setPhotoCount((n) => n + 1)
+      setPendingPhoto(null)
       showSuccess('Fotografija je dodana')
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Fotografiju nije moguće poslati')
@@ -217,7 +200,9 @@ export function InspectionPage() {
           className="sr-only"
           onChange={(e) => {
             const file = e.target.files?.[0]
-            if (file) void addPhoto(file)
+            // §44 — held for the caption step rather than uploaded straight away. The photo does
+            // not leave the phone until the beekeeper presses "Spremi sliku".
+            if (file) setPendingPhoto(file)
             e.target.value = ''
           }}
         />
@@ -231,6 +216,17 @@ export function InspectionPage() {
           {uploading ? <LoaderCircle className="animate-spin" /> : <Camera />}
           {photoCount > 0 ? `Fotografije (${photoCount})` : 'Dodaj fotografiju'}
         </Button>
+
+        {pendingPhoto && (
+          <div className="mt-3">
+            <PhotoCaption
+              file={pendingPhoto}
+              saving={uploading}
+              onCancel={() => setPendingPhoto(null)}
+              onConfirm={(caption) => void addPhoto(pendingPhoto, caption)}
+            />
+          </div>
+        )}
         {!online && <p className="mt-1 text-xs text-muted-foreground">Fotografije zahtijevaju vezu.</p>}
       </div>
 
