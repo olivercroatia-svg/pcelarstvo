@@ -8,7 +8,9 @@ import { startScheduler } from './lib/scheduler.js'
 import { errorHandler } from './middleware/error.js'
 import { attachUser, requireAuth } from './middleware/auth.js'
 import { adminRouter } from './routes/admin.js'
+import { aiRouter } from './routes/ai.js'
 import { apiariesRouter } from './routes/apiaries.js'
+import { assistantRouter } from './routes/assistant.js'
 import { authRouter } from './routes/auth.js'
 import { documentsRouter } from './routes/documents.js'
 import { analyticsRouter, economicsRouter } from './routes/economics.js'
@@ -132,6 +134,17 @@ app.use('/api/sales', requireAuth, salesRouter)
 app.use('/api/expenses', requireAuth, expensesRouter)
 app.use('/api/economics', requireAuth, economicsRouter)
 app.use('/api/subsidies', requireAuth, subsidiesRouter)
+
+// AI sloj (§13, §18, §31, §39, §44–§46). Every route behind these two mounts returns a draft or an
+// answer and writes to no register: what the beekeeper confirms is saved by the module route above
+// that owns the table, with their user id on it. Not financial in themselves, so requireOwner sits
+// per route rather than on the mount — reading a receipt (§39) and the cost breakdown are owner's,
+// dictating an inspection and photographing a medicine box are not.
+//
+// routes/inspection.ts reads neither of them, and there is nothing here for it to read: the AI
+// layer stores usage figures and conversations, never a fact about the bees.
+app.use('/api/ai', requireAuth, aiRouter)
+app.use('/api/assistant', requireAuth, assistantRouter)
 
 // §35 — the only unauthenticated data route in the application. Deliberately mounted apart from
 // everything else and without requireAuth, so it can never pick up a farm scope by accident: what
