@@ -7,7 +7,7 @@ import { asyncHandler, conflict, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
 import { mapRule } from '../lib/obligations.js'
 import { runReminderSweep } from '../lib/scheduler.js'
-import { changedColumns, nullableDate, nullableInt, nullableText } from '../lib/schema.js'
+import { asDate, changedColumns, nullableDate, nullableInt, nullableText } from '../lib/schema.js'
 import { requireAdmin } from '../middleware/auth.js'
 
 /**
@@ -464,5 +464,353 @@ adminRouter.patch(
         hint: (after[0]!.hint as string | null) ?? null,
       },
     })
+  }),
+)
+
+// ═══════════════════════════════════════════════ §19 — the seasonal calendar
+//
+// Full CRUD, unlike the declaration blocks above. §19 says the activities "mogu se razlikovati
+// prema regiji, tipu pčelarenja, nadmorskoj visini" — the set is open by definition, so an
+// administrator who could only edit the seeded rows would be stuck the first time a region needs
+// its own task.
+
+const SEASON_REGIONS = ['all', 'continental', 'coastal', 'mountain'] as const
+const SEASON_KINDS = ['all', 'stationary', 'migratory'] as const
+
+function mapSeasonTask(row: RowDataPacket) {
+  return {
+    id: row.id as string,
+    month: Number(row.month),
+    title: row.title as string,
+    detail: (row.detail as string | null) ?? null,
+    region: row.region as (typeof SEASON_REGIONS)[number],
+    apiaryKind: row.apiary_kind as (typeof SEASON_KINDS)[number],
+    sortOrder: Number(row.sort_order),
+    active: Boolean(row.active),
+  }
+}
+
+const seasonFields = {
+  month: z.coerce.number().int().min(1).max(12),
+  title: z.string().trim().min(2, 'Unesite naziv posla').max(200),
+  detail: nullableText(500),
+  region: z.enum(SEASON_REGIONS).default('all'),
+  apiaryKind: z.enum(SEASON_KINDS).default('all'),
+  sortOrder: z.coerce.number().int().min(0).max(9999).default(100),
+}
+
+const SEASON_COLUMNS: Record<string, string> = {
+  month: 'month',
+  title: 'title',
+  detail: 'detail',
+  region: 'region',
+  apiaryKind: 'apiary_kind',
+  sortOrder: 'sort_order',
+}
+
+adminRouter.get(
+  '/season-tasks',
+  asyncHandler(async (_req, res) => {
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM season_tasks ORDER BY month, sort_order, title')
+    res.json({ tasks: rows.map(mapSeasonTask) })
+  }),
+)
+
+adminRouter.post(
+  '/season-tasks',
+  asyncHandler(async (req, res) => {
+    const data = z.object(seasonFields).parse(req.body)
+    const id = newId()
+    const { names, values } = changedColumns(data, SEASON_COLUMNS)
+
+    await pool.query(
+      `INSERT INTO season_tasks (id, ${names.join(', ')}) VALUES (?, ${names.map(() => '?').join(', ')})`,
+      [id, ...values],
+    )
+    await writeAudit(req, {
+      userId: req.user!.id,
+      action: 'season_task.create',
+      entityType: 'season_task',
+      entityId: id,
+      after: data,
+    })
+
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM season_tasks WHERE id = ?', [id])
+    res.status(201).json({ task: mapSeasonTask(rows[0]!) })
+  }),
+)
+
+adminRouter.patch(
+  '/season-tasks/:id',
+  asyncHandler(async (req, res) => {
+    const [existing] = await pool.query<RowDataPacket[]>('SELECT * FROM season_tasks WHERE id = ? LIMIT 1', [
+      req.params.id,
+    ])
+    const before = existing[0]
+    if (!before) throw notFound('Posao nije pronađen')
+
+    const data = z
+      .object({
+        ...seasonFields,
+        month: seasonFields.month.optional(),
+        title: seasonFields.title.optional(),
+        region: z.enum(SEASON_REGIONS).optional(),
+        apiaryKind: z.enum(SEASON_KINDS).optional(),
+        sortOrder: z.coerce.number().int().min(0).max(9999).optional(),
+        active: z.boolean().optional(),
+      })
+      .parse(req.body)
+
+    const { active, ...fields } = data
+    const { names, values } = changedColumns(fields, SEASON_COLUMNS)
+    if (active !== undefined) {
+      names.push('active')
+      values.push(active)
+    }
+    if (names.length > 0) {
+      await pool.query(
+        `UPDATE season_tasks SET ${names.map((n) => `${n} = ?`).join(', ')} WHERE id = ?`,
+        [...values, before.id],
+      )
+    }
+
+    const [after] = await pool.query<RowDataPacket[]>('SELECT * FROM season_tasks WHERE id = ?', [before.id])
+    await writeAudit(req, {
+      userId: req.user!.id,
+      action: 'season_task.update',
+      entityType: 'season_task',
+      entityId: before.id as string,
+      before: mapSeasonTask(before),
+      after: mapSeasonTask(after[0]!),
+    })
+    res.json({ task: mapSeasonTask(after[0]!) })
+  }),
+)
+
+adminRouter.delete(
+  '/season-tasks/:id',
+  asyncHandler(async (req, res) => {
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT id, title FROM season_tasks WHERE id = ?', [
+      req.params.id,
+    ])
+    if (rows.length === 0) throw notFound('Posao nije pronađen')
+
+    // Hard delete, unlike an obligation. A calendar entry is advice, not a record of anything that
+    // was filed, so nothing downstream references it.
+    await pool.query('DELETE FROM season_tasks WHERE id = ?', [req.params.id])
+    await writeAudit(req, {
+      userId: req.user!.id,
+      action: 'season_task.delete',
+      entityType: 'season_task',
+      entityId: req.params.id,
+      before: { title: rows[0]!.title },
+    })
+    res.status(204).end()
+  }),
+)
+
+// ═══════════════════════════════════════════════ §50 — subsidy programmes
+//
+// "Aplikacija prati natječaje i intervencije koje administrator unese u sustav." Nothing is
+// seeded: an invented call for applications would be exactly the automatic guarantee of
+// entitlement §50 forbids. Everything a farm sees under Potpore was typed here first.
+
+const PROGRAM_APPLIES = ['all', 'registered_epp', 'migratory', 'honey_producer', 'food_business'] as const
+
+function mapProgram(row: RowDataPacket, requirements: RowDataPacket[]) {
+  return {
+    id: row.id as string,
+    code: row.code as string,
+    name: row.name as string,
+    authority: (row.authority as string | null) ?? null,
+    description: (row.description as string | null) ?? null,
+    year: row.year === null ? null : Number(row.year),
+    opensOn: asDate(row.opens_on),
+    closesOn: asDate(row.closes_on),
+    url: (row.url as string | null) ?? null,
+    appliesTo: row.applies_to as (typeof PROGRAM_APPLIES)[number],
+    active: Boolean(row.active),
+    sortOrder: Number(row.sort_order),
+    requirements: requirements
+      .filter((r) => r.program_id === row.id)
+      .map((r) => ({
+        id: r.id as string,
+        label: r.label as string,
+        documentCategory: (r.document_category as string | null) ?? null,
+        required: Boolean(r.required),
+        sortOrder: Number(r.sort_order),
+      })),
+  }
+}
+
+const programFields = {
+  code: z.string().trim().min(2).max(60),
+  name: z.string().trim().min(2, 'Unesite naziv natječaja').max(200),
+  authority: nullableText(200),
+  description: nullableText(4000),
+  year: nullableInt(2000, 2100),
+  opensOn: nullableDate,
+  closesOn: nullableDate,
+  url: nullableText(255),
+  appliesTo: z.enum(PROGRAM_APPLIES).default('all'),
+  sortOrder: z.coerce.number().int().min(0).max(9999).default(100),
+}
+
+const PROGRAM_COLUMNS: Record<string, string> = {
+  code: 'code',
+  name: 'name',
+  authority: 'authority',
+  description: 'description',
+  year: 'year',
+  opensOn: 'opens_on',
+  closesOn: 'closes_on',
+  url: 'url',
+  appliesTo: 'applies_to',
+  sortOrder: 'sort_order',
+}
+
+async function loadProgramsAdmin(programId?: string) {
+  const [programs] = await pool.query<RowDataPacket[]>(
+    `SELECT * FROM subsidy_programs ${programId ? 'WHERE id = ?' : ''} ORDER BY sort_order, name`,
+    programId ? [programId] : [],
+  )
+  if (programs.length === 0) return []
+  const [requirements] = await pool.query<RowDataPacket[]>(
+    'SELECT * FROM subsidy_requirements WHERE program_id IN (?) ORDER BY sort_order, label',
+    [programs.map((p) => p.id as string)],
+  )
+  return programs.map((p) => mapProgram(p, requirements))
+}
+
+adminRouter.get(
+  '/subsidy-programs',
+  asyncHandler(async (_req, res) => {
+    const [usage] = await pool.query<RowDataPacket[]>(
+      'SELECT program_id, COUNT(*) AS applications FROM subsidy_applications WHERE deleted_at IS NULL GROUP BY program_id',
+    )
+    const counts = new Map(usage.map((r) => [r.program_id as string, Number(r.applications)]))
+    const programs = await loadProgramsAdmin()
+    res.json({
+      programs: programs.map((p) => ({ ...p, applicationCount: counts.get(p.id) ?? 0 })),
+    })
+  }),
+)
+
+adminRouter.post(
+  '/subsidy-programs',
+  asyncHandler(async (req, res) => {
+    const data = z.object(programFields).parse(req.body)
+    const id = newId()
+    const { names, values } = changedColumns(data, PROGRAM_COLUMNS)
+
+    try {
+      await pool.query(
+        `INSERT INTO subsidy_programs (id, ${names.join(', ')}) VALUES (?, ${names.map(() => '?').join(', ')})`,
+        [id, ...values],
+      )
+    } catch (err) {
+      if ((err as { code?: string }).code === 'ER_DUP_ENTRY') {
+        throw conflict('Natječaj s tom oznakom već postoji', 'duplicate_code')
+      }
+      throw err
+    }
+
+    await writeAudit(req, {
+      userId: req.user!.id,
+      action: 'subsidy_program.create',
+      entityType: 'subsidy_program',
+      entityId: id,
+      after: { code: data.code, name: data.name },
+    })
+    res.status(201).json({ program: (await loadProgramsAdmin(id))[0] })
+  }),
+)
+
+adminRouter.patch(
+  '/subsidy-programs/:id',
+  asyncHandler(async (req, res) => {
+    const [existing] = await pool.query<RowDataPacket[]>('SELECT * FROM subsidy_programs WHERE id = ? LIMIT 1', [
+      req.params.id,
+    ])
+    const before = existing[0]
+    if (!before) throw notFound('Natječaj nije pronađen')
+
+    const data = z
+      .object({
+        ...programFields,
+        code: programFields.code.optional(),
+        name: programFields.name.optional(),
+        appliesTo: z.enum(PROGRAM_APPLIES).optional(),
+        sortOrder: z.coerce.number().int().min(0).max(9999).optional(),
+        active: z.boolean().optional(),
+      })
+      .parse(req.body)
+
+    const { active, ...fields } = data
+    const { names, values } = changedColumns(fields, PROGRAM_COLUMNS)
+    if (active !== undefined) {
+      names.push('active')
+      values.push(active)
+    }
+    if (names.length > 0) {
+      await pool.query(
+        `UPDATE subsidy_programs SET ${names.map((n) => `${n} = ?`).join(', ')} WHERE id = ?`,
+        [...values, before.id],
+      )
+    }
+
+    await writeAudit(req, {
+      userId: req.user!.id,
+      action: 'subsidy_program.update',
+      entityType: 'subsidy_program',
+      entityId: before.id as string,
+      before: { name: before.name, active: Boolean(before.active) },
+      after: { name: data.name ?? before.name, active: active ?? Boolean(before.active) },
+    })
+    res.json({ program: (await loadProgramsAdmin(before.id as string))[0] })
+  }),
+)
+
+adminRouter.post(
+  '/subsidy-programs/:id/requirements',
+  asyncHandler(async (req, res) => {
+    const [program] = await pool.query<RowDataPacket[]>('SELECT id FROM subsidy_programs WHERE id = ?', [
+      req.params.id,
+    ])
+    if (program.length === 0) throw notFound('Natječaj nije pronađen')
+
+    const data = z
+      .object({
+        label: z.string().trim().min(2, 'Unesite naziv stavke').max(200),
+        documentCategory: nullableText(60),
+        required: z.boolean().default(true),
+        sortOrder: z.coerce.number().int().min(0).max(9999).default(100),
+      })
+      .parse(req.body)
+
+    const id = newId()
+    await pool.query(
+      `INSERT INTO subsidy_requirements (id, program_id, label, document_category, required, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, req.params.id, data.label, data.documentCategory ?? null, data.required, data.sortOrder],
+    )
+    res.status(201).json({ program: (await loadProgramsAdmin(req.params.id))[0] })
+  }),
+)
+
+adminRouter.delete(
+  '/subsidy-requirements/:id',
+  asyncHandler(async (req, res) => {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, program_id FROM subsidy_requirements WHERE id = ?',
+      [req.params.id],
+    )
+    if (rows.length === 0) throw notFound('Stavka nije pronađena')
+
+    // The attachments go with it — a document filed against a requirement that no longer exists
+    // would keep counting toward a percentage with nothing behind it.
+    await pool.query('DELETE FROM subsidy_application_documents WHERE requirement_id = ?', [req.params.id])
+    await pool.query('DELETE FROM subsidy_requirements WHERE id = ?', [req.params.id])
+    res.status(204).end()
   }),
 )
