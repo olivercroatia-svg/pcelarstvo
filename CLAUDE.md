@@ -30,6 +30,9 @@ npm run dev         # Vite :5173, proxies /api → 127.0.0.1:3001
 npm run build       # tsc -b && vite build
 npx tsc -b          # typecheck only — there is no `typecheck` script here
 npm run lint        # oxlint (currently warnings only, exit 0)
+
+# repo root
+scripts/backup.sh   # mysqldump + uploads tarball; cron target on the VPS (§56)
 ```
 
 Local dev DB is `moj_pcelinjak_dev`; config lives in the git-ignored root `.env`, which both the
@@ -44,7 +47,7 @@ There is no test suite in the repository. Verification is (a) end-to-end bash sc
 the API with `curl`, written per stage and kept in the session scratchpad, and (b) manual
 click-through at 390×844.
 
-Four things that will otherwise cost you an hour:
+Six things that will otherwise cost you an hour:
 
 - **TypeScript does not check SQL.** A query with a wrong column name typechecks perfectly and
   fails at runtime. Run every new query against the dev DB before believing it — seven of the
@@ -56,9 +59,20 @@ Four things that will otherwise cost you an hour:
 - **Suites are order-dependent.** `test-scheduler.sh` leaves one `test_rok_*` obligation rule
   `active`, which makes `test-etapa2.sh` count 4 obligations instead of 3. Deactivate leftovers
   between runs; a failure right after another suite is usually this, not a regression.
-- **HTTP 429 mid-suite is the rate limiter, not a regression.** 300 req/min globally plus 20
-  logins/15 min on the auth routes, both in-memory — restarting the backend clears them. Running
-  two suites back to back reliably trips it; restart between them.
+- **HTTP 429 mid-suite is the rate limiter, not a regression.** 300 req/min globally, 20 logins/15
+  min on the auth routes, 10/hour shared by `/me/export` and `DELETE /me` — all in-memory, so
+  restarting the backend clears them. Running two suites back to back reliably trips it; restart
+  between them. `test-etapa6.sh` alone spends 8 of its 10, so it does not survive a second run.
+- **`set -o pipefail` plus `grep -q` is a lie detector that lies.** `grep -q` exits on its first
+  match and closes the pipe; whatever was writing takes SIGPIPE, and `pipefail` reports the
+  pipeline as failed *because the match was found*. This cost an hour twice in one afternoon — once
+  in `scripts/backup.sh` (a capability probe that answered "unsupported" on every server that
+  supported it) and once in a test harness, where every assertion whose match sat early in a 1 MB
+  export "failed" while the one match near the end passed. Match with `case "$haystack" in
+  *"$needle"*)` instead; no pipe, no signal, no puzzle.
+- **`UID` is readonly in bash.** `UID=$(…)` fails with one line of stderr that scrolls past, then
+  every `WHERE id='$UID'` runs against the empty string and *passes vacuously*. Any shell variable
+  a test uses to hold a captured id should be named something bash does not already own.
 
 ## Architecture
 
@@ -166,6 +180,35 @@ Other things worth knowing before touching it:
   behind `transcribe()` in `lib/voice.ts` and is one file to swap.
 - §44 must not diagnose. That constraint is the feature, not a caveat on it.
 
+### Personal data: export and erasure (§56)
+
+`lib/gdpr.ts` is one table map and two functions over it, reached through `GET /api/me/export` and
+`DELETE /api/me`. No migration — stage 6 added no tables, which is the point.
+
+- **The map is the feature.** An export is worth something only if it is complete, and completeness
+  is a property of the list, not of the loop that walks it. A table added by a later module and
+  forgotten here fails nothing and silently omits a chapter, so every table in the schema must
+  appear in either the map or the exported `SHARED_REFERENCE` set — and `test-etapa6.sh` asserts
+  exactly that against `information_schema`. **If you add a table, add it to one of the two lists.**
+- **`SELECT *`, deliberately.** Rows go to the person they are about, so a wildcard cannot
+  over-disclose. The one exception is `users.password_hash`, and `users` is handled by name.
+- **§4 applies here too.** The export is role-shaped: an owner gets the farm, a worker gets their
+  account and the rows they wrote. Handing a worker the farm's sales ledger would be a §4 bypass
+  wearing a compliance badge.
+- **Erasure means the data stops being personal, not that forty tables are truncated.** Identity
+  fields are overwritten — account, farm identity, customers' names and OIBs, the apiary
+  coordinates §56 exists to protect — uploaded scans are unlinked from disk, and the farm is
+  soft-deleted, which removes it from every query at once because every route already filters
+  `deleted_at IS NULL`. `audit_logs` survives (čl. 17(3)(b)); after this runs its `user_id` no
+  longer resolves to a name.
+- **Never build an identifier from a prefix of a UUIDv7.** The anonymised address was
+  `CONCAT('obrisan-', LEFT(id, 8), …)` until two accounts registered seconds apart collided on
+  `users.uq_users_email` — v7 begins with a timestamp, so the prefix is shared, not unique. The
+  transaction rolled back and the second deletion failed *after* the user was told it could not be
+  undone. Use the whole id.
+- Files are unlinked **after** the commit, never inside it: a file system error must not roll back
+  an erasure the user has already been told is irreversible. Failures are logged with their paths.
+
 ### Migrations
 
 `migrations/NNN_name.sql`, applied once and checksummed. Editing an already-applied file only prints
@@ -203,6 +246,15 @@ so guarded ALTERs use the `information_schema` + `PREPARE`/`EXECUTE` idiom alrea
 - Observation vocabularies live in `lib/inspectionOptions.ts`, shared by the manual and the voice
   form. Two copies of these labels drift, and a beekeeper reading "Jaka" on one screen and "Jako"
   on the other has been given two vocabularies for one observation.
+- **The root address serves two audiences.** `RequireAuth` renders `Landing` (§65, §66) when the
+  path is exactly `/` and nobody is signed in; any deeper link still redirects to `/prijava`,
+  because someone who asked for `/kosnice/12` wants that screen after signing in, not a sales
+  pitch. `Landing` and `Privacy` are lazy for the same reason as the public jar page — a beekeeper
+  opening the installed PWA must not download marketing copy on the way to the dashboard.
+- `pages/Privacy.tsx` is written from the schema, not from a template: the three outbound services
+  it names (Open-Meteo, Groq, Anthropic) are the three the backend really calls, and the stored-data
+  list is the table list. **Add an outbound call, add it there.** The controller block at the top is
+  blank on purpose and the page renders a visible warning until it is filled.
 
 ## What "done" means here
 
@@ -221,9 +273,15 @@ before every commit.
 
 ## Stage plan
 
-Stages 0–5 are complete: foundation and auth, apiary core with QR and offline entry, health and
-statutory obligations, production and traceability, commerce and season, AI layer. Remaining:
-**6 — landing page and GDPR**, **7 — deploy via `myDeploy-Hetzner`**.
+Stages 0–6 are complete: foundation and auth, apiary core with QR and offline entry, health and
+statutory obligations, production and traceability, commerce and season, AI layer, landing page and
+GDPR. Remaining: **7 — deploy via `myDeploy-Hetzner`**.
+
+Two things stage 6 left for the deploy rather than solving in code, because neither belongs in the
+application: **HTTPS** is Nginx and Let's Encrypt (the code side is already right — `secure` cookies
+under `NODE_ENV=production`, HSTS from helmet's defaults), and **the backup cron** is a line in
+`crontab` pointing at `scripts/backup.sh`, with `BACKUP_REMOTE` set to an rclone target. A backup
+sitting on the same disk as the database survives a bad migration and nothing else.
 
 Load the `claude-api` skill before changing anything in the AI layer — model IDs, pricing and the
 request surface move, and this file records decisions rather than the current API.
@@ -234,6 +292,11 @@ behaviour — all of which hold without a key — but the *quality* of what come
 crumpled Croatian receipt reads, how well Croatian beekeeping speech transcribes) is untested. Set
 `ANTHROPIC_API_KEY` and `GROQ_API_KEY`, then photograph one VMP box and dictate one inspection
 before trusting any of it.
+
+**Also needs a person, not a commit:** the privacy notice names no controller until someone fills
+the `OPERATOR` block in `pages/Privacy.tsx`, and the text should be read by a lawyer before the
+domain is public. The page shows a warning banner while those fields are blank, so it cannot ship
+unnoticed.
 
 The full plan, including the per-stage verification scenarios, lives at
 `~/.claude/plans/uvezi-design-iz-linka-vivid-squirrel.md`.
