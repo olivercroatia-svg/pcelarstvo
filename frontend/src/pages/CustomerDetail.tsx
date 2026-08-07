@@ -10,7 +10,7 @@ import { formatDate, formatEur } from '@/lib/format'
 import type { Customer } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
 import { CustomerForm } from './Customers'
-import { CHANNEL_LABELS } from './Sales'
+import { CHANNEL_LABELS } from '@/lib/labels'
 
 interface CustomerSale {
   id: string

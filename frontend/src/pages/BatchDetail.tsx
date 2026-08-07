@@ -9,7 +9,7 @@ import { StatusPill } from '@/components/ui/status'
 import { useToast } from '@/components/ui/toast'
 import { api, ApiError } from '@/lib/api'
 import { formatDate, formatNumber } from '@/lib/format'
-import { BATCH_STATUS } from '@/pages/Batches'
+import { BATCH_STATUS } from '@/lib/labels'
 import type { BatchStatus, HoneyBatch, WithdrawalConflict } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
 

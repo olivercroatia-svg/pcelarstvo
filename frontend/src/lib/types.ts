@@ -334,6 +334,7 @@ export type DocumentCategory =
   | 'food_safety'
   | 'laboratory'
   | 'subsidy'
+  | 'receipt'
   | 'other'
 
 export interface ArchivedDocument {

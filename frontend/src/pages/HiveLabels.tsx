@@ -1,7 +1,7 @@
 import { ArrowLeft, Printer } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { hiveScanUrl } from '@/components/QrCode'
 import { QrCode } from '@/components/lazy'
+import { hiveScanUrl } from '@/lib/urls'
 import { BrandMark } from '@/components/BrandMark'
 import { Button } from '@/components/ui/button'
 import { ErrorState, LoadingState } from '@/components/ui/states'

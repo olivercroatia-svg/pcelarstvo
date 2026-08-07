@@ -10,7 +10,7 @@ import { api, ApiError } from '@/lib/api'
 import { formatEur, formatNumber, todayIso } from '@/lib/format'
 import type { SaleItemKind, SaleOptions } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-import { CHANNEL_LABELS, PAYMENT_LABELS } from './Sales'
+import { CHANNEL_LABELS, PAYMENT_LABELS } from '@/lib/labels'
 
 /**
  * §37 — "Jednostavna evidencija prodaje."

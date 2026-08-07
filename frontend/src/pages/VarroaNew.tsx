@@ -12,7 +12,7 @@ import { api, ApiError } from '@/lib/api'
 import { formatNumber, todayIso } from '@/lib/format'
 import type { Apiary, Hive, VarroaLevel, VarroaMethod, VarroaPhase } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-import { levelTone } from './Varroa'
+import { varroaLevelTone } from '@/lib/labels'
 
 const METHODS: { value: VarroaMethod; label: string }[] = [
   { value: 'powdered_sugar', label: 'Šećer u prahu' },
@@ -243,7 +243,7 @@ export function VarroaNewPage() {
                 <span className="tabular text-2xl font-bold">
                   {formatNumber(result.value)} {result.unit}
                 </span>
-                <StatusPill level={levelTone(result.level)}>{LEVEL_LABEL[result.level]}</StatusPill>
+                <StatusPill level={varroaLevelTone(result.level)}>{LEVEL_LABEL[result.level]}</StatusPill>
               </span>
             </div>
           )}

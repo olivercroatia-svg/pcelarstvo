@@ -13,6 +13,7 @@ import { useResource } from '@/lib/useResource'
 import { cn } from '@/lib/utils'
 
 const JAR_SIZES = [250, 370, 450, 720, 950, 1000]
+const EMPTY_PRODUCTS: Product[] = []
 
 /**
  * §33 — "Korisnik odabira LOT, pakiranje 450 g, broj staklenki 120. Aplikacija izračunava 54 kg.
@@ -41,7 +42,7 @@ export function PackagingNewPage() {
   const [materialItemIds, setMaterialItemIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
-  const products = productData?.products ?? []
+  const products = productData?.products ?? EMPTY_PRODUCTS
   // Only packaging materials, and only ones with stock — offering to draw down an empty shelf
   // would just produce a negative count.
   const materials = (inventoryData?.items ?? []).filter((i) => i.category === 'packaging' && i.quantity > 0)

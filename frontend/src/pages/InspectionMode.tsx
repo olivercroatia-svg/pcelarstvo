@@ -8,7 +8,7 @@ import { CheckRow } from '@/components/ui/status'
 import { formatDate } from '@/lib/format'
 import type { InspectionModeData } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-import { CATEGORY_LABEL } from './Documents'
+import { DOCUMENT_CATEGORY_LABELS } from '@/lib/labels'
 
 function Field({ label, value }: { label: string; value: string | null }) {
   if (!value) return null
@@ -186,7 +186,7 @@ export function InspectionModePage() {
                       <span className="font-medium">{doc.title}</span>
                     )}
                     <span className="block text-xs text-muted-foreground">
-                      {CATEGORY_LABEL[doc.category]}
+                      {DOCUMENT_CATEGORY_LABELS[doc.category]}
                       {doc.referenceNumber ? ` · ${doc.referenceNumber}` : ''}
                       {doc.issuedOn ? ` · ${formatDate(doc.issuedOn)}` : ''}
                     </span>

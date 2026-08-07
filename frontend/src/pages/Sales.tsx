@@ -5,25 +5,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Select } from '@/components/ui/field'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { formatDate, formatEur, formatNumber } from '@/lib/format'
+import { CHANNEL_LABELS } from '@/lib/labels'
 import type { Sale } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-
-export const CHANNEL_LABELS: Record<string, string> = {
-  direct: 'Izravno',
-  market: 'Sajam',
-  shop: 'Trgovina',
-  restaurant: 'Restoran',
-  distributor: 'Distributer',
-  online: 'Online',
-  other: 'Ostalo',
-}
-
-export const PAYMENT_LABELS: Record<string, string> = {
-  cash: 'Gotovina',
-  transfer: 'Transakcijski račun',
-  card: 'Kartica',
-  other: 'Ostalo',
-}
 
 const YEARS = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i)
 

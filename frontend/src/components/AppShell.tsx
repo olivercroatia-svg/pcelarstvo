@@ -44,6 +44,7 @@ import {
 import { useState, type ComponentType } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
+import { LazyRoute } from '@/components/lazy'
 import { useConfirm } from '@/components/ui/confirm'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/auth/AuthContext'
@@ -247,7 +248,9 @@ export function AppShell() {
 
       {/* pb-28 clears the fixed bottom bar so the last card is never trapped underneath it. */}
       <main className="flex-1 px-4 pb-28 pt-4">
-        <Outlet />
+        <LazyRoute>
+          <Outlet />
+        </LazyRoute>
       </main>
 
       <nav

@@ -9,7 +9,7 @@ import { api, ApiError } from '@/lib/api'
 import { formatDate, formatEur, formatNumber } from '@/lib/format'
 import type { Sale, SaleItem } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-import { CHANNEL_LABELS, PAYMENT_LABELS } from './Sales'
+import { CHANNEL_LABELS, PAYMENT_LABELS } from '@/lib/labels'
 
 /** §37 — one sale. Lines are not editable; see the note at the top of routes/sales.ts. */
 export function SaleDetailPage() {

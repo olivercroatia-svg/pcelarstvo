@@ -1,15 +1,6 @@
 import QRCode from 'qrcode'
 import { useEffect, useState } from 'react'
 
-/**
- * The label encodes a deep link, not a bare token, so a phone's built-in camera app opens the hive
- * card directly. Anyone else scanning it just gets a login screen — the token identifies the hive,
- * it does not authorise anything (§11, §56).
- */
-export function hiveScanUrl(qrToken: string): string {
-  return `${window.location.origin}${import.meta.env.BASE_URL}skeniraj/${qrToken}`
-}
-
 interface QrCodeProps {
   value: string
   size?: number

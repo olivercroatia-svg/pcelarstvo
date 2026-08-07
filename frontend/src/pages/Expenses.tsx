@@ -10,6 +10,7 @@ import { Field, Input, Select } from '@/components/ui/field'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { useToast } from '@/components/ui/toast'
 import { api, ApiError } from '@/lib/api'
+import { formatDecimalInput, parseDecimalInput } from '@/lib/decimal'
 import { formatDate, formatEur, todayIso } from '@/lib/format'
 import type { Apiary, Expense, ExpenseCategory } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
@@ -240,7 +241,14 @@ function ExpenseForm({
   async function submit(event: React.FormEvent) {
     event.preventDefault()
     setFieldErrors({})
-    if (!amount || Number(amount) <= 0) return setFieldErrors({ amount: 'Unesite iznos' })
+    const parsedAmount = parseDecimalInput(amount)
+    const parsedVatAmount = vatAmount === '' ? null : parseDecimalInput(vatAmount)
+    if (!amount || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return setFieldErrors({ amount: 'Unesite iznos' })
+    }
+    if (parsedVatAmount !== null && !Number.isFinite(parsedVatAmount)) {
+      return setFieldErrors({ vatAmount: 'Unesite ispravan iznos PDV-a' })
+    }
 
     setSaving(true)
     try {
@@ -251,8 +259,8 @@ function ExpenseForm({
           category,
           supplier: supplier.trim() || null,
           description: description.trim() || null,
-          amount: Number(amount),
-          vatAmount: vatAmount === '' ? null : Number(vatAmount),
+          amount: parsedAmount,
+          vatAmount: parsedVatAmount,
           apiaryId: apiaryId || null,
           documentId: documentId || null,
         },
@@ -284,9 +292,8 @@ function ExpenseForm({
               if (d.spentOn) setSpentOn(d.spentOn)
               if (d.supplier) setSupplier(d.supplier)
               if (d.description) setDescription(d.description)
-              // Comma, not dot: the input is text and the rest of this form is Croatian.
-              if (d.amount !== null) setAmount(String(d.amount).replace('.', ','))
-              if (d.vatAmount !== null) setVatAmount(String(d.vatAmount).replace('.', ','))
+              if (d.amount !== null) setAmount(formatDecimalInput(d.amount))
+              if (d.vatAmount !== null) setVatAmount(formatDecimalInput(d.vatAmount))
               if (d.category) setCategory(d.category as ExpenseCategory)
               setUnreadable(d.unreadable)
             }}
@@ -324,7 +331,7 @@ function ExpenseForm({
                 />
               )}
             </Field>
-            <Field label="Od toga PDV" optional>
+            <Field label="Od toga PDV" error={fieldErrors.vatAmount} optional>
               {(p) => (
                 <Input
                   {...p}

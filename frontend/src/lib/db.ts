@@ -5,6 +5,8 @@ export type OutboxKind = 'inspection' | 'inspection_batch' | 'feeding'
 export interface OutboxItem {
   /** The client-generated UUID that also becomes the record's primary key on the server. */
   id: string
+  userId: string
+  farmId: string
   kind: OutboxKind
   path: string
   payload: unknown
@@ -30,3 +32,25 @@ export const db = new Dexie('moj-pcelinjak') as Dexie & {
 db.version(1).stores({
   outbox: 'id, createdAt, kind',
 })
+
+/**
+ * v2 scopes the queue to an account. IndexedDB leaves a row out of a compound index when any part
+ * of the key is undefined, so a v1 row — written before the queue knew whose it was — would be
+ * invisible to the scoped read that is now the only way rows are fetched: not listed, not sent,
+ * and not even discardable, while the pending badge reads zero and the screen says everything is
+ * synced. Deleting them is the honest end of that: they cannot be attributed to a user or a farm
+ * after the fact, so they cannot be sent anywhere, and the alternative is dead weight no code path
+ * can reach. Doing it now costs a dev browser's test rows; after stage 7 it would cost someone's
+ * field notes.
+ */
+db.version(2)
+  .stores({
+    outbox: 'id, createdAt, kind, [userId+farmId]',
+  })
+  .upgrade((tx) =>
+    tx
+      .table<OutboxItem>('outbox')
+      .toCollection()
+      .filter((item) => !item.userId || !item.farmId)
+      .delete(),
+  )

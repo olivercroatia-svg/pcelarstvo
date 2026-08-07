@@ -30,13 +30,13 @@ function pickMimeType(): string | null {
   return ''
 }
 
-export const voiceSupported = (): boolean =>
+const voiceSupported = (): boolean =>
   typeof MediaRecorder !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia)
 
 const MAX_SECONDS = 180
 
 interface VoiceRecorderProps {
-  onRecorded: (blob: Blob, mimeType: string) => void
+  onRecorded: (blob: Blob, mimeType: string, durationSeconds: number) => void
   busy?: boolean
   disabled?: boolean
 }
@@ -50,6 +50,7 @@ export function VoiceRecorder({ onRecorded, busy = false, disabled = false }: Vo
   const chunks = useRef<Blob[]>([])
   const stream = useRef<MediaStream | null>(null)
   const timer = useRef<number | null>(null)
+  const elapsed = useRef(0)
   const cancelled = useRef(false)
 
   /**
@@ -80,6 +81,7 @@ export function VoiceRecorder({ onRecorded, busy = false, disabled = false }: Vo
       const rec = mimeType ? new MediaRecorder(media, { mimeType }) : new MediaRecorder(media)
       recorder.current = rec
       chunks.current = []
+      elapsed.current = 0
 
       rec.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.current.push(e.data)
@@ -91,7 +93,7 @@ export function VoiceRecorder({ onRecorded, busy = false, disabled = false }: Vo
         if (cancelled.current) return
         const type = rec.mimeType || 'audio/webm'
         const blob = new Blob(chunks.current, { type })
-        if (blob.size > 0) onRecorded(blob, type)
+        if (blob.size > 0) onRecorded(blob, type, elapsed.current)
       }
 
       rec.start()
@@ -100,8 +102,10 @@ export function VoiceRecorder({ onRecorded, busy = false, disabled = false }: Vo
       timer.current = window.setInterval(() => {
         setSeconds((s) => {
           // Hard stop rather than letting a pocket-dial upload three minutes of wind noise.
-          if (s + 1 >= MAX_SECONDS) rec.stop()
-          return s + 1
+          const next = s + 1
+          elapsed.current = next
+          if (next >= MAX_SECONDS) rec.stop()
+          return next
         })
       }, 1000)
     } catch (err) {

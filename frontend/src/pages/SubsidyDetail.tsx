@@ -9,7 +9,7 @@ import { api, ApiError } from '@/lib/api'
 import { formatDate, formatEur } from '@/lib/format'
 import type { SubsidyProgram } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-import { SUBSIDY_STATUS_LABELS } from './Subsidies'
+import { SUBSIDY_STATUS_LABELS } from '@/lib/labels'
 import { useState } from 'react'
 
 interface Response {

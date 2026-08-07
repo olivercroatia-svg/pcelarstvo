@@ -12,6 +12,8 @@ import type { Apiary, Hive, VmpProduct } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
 import { cn } from '@/lib/utils'
 
+const EMPTY_PRODUCTS: VmpProduct[] = []
+
 /** §17 — every field the register has to carry, in the order a beekeeper reads them off the box. */
 export function TreatmentNewPage() {
   const navigate = useNavigate()
@@ -41,7 +43,7 @@ export function TreatmentNewPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const apiaries = apiaryData?.apiaries ?? []
-  const products = productData?.products ?? []
+  const products = productData?.products ?? EMPTY_PRODUCTS
   const effectiveApiary = apiaryId || (apiaries.length === 1 ? apiaries[0]!.id : '')
 
   // Picking from the shelf copies the product's details into the form. They stay editable: the

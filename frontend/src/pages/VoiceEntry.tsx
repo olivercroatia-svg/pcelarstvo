@@ -67,7 +67,7 @@ export function VoiceEntryPage() {
   })
   const [notes, setNotes] = useState('')
 
-  async function send(blob: Blob, mimeType: string) {
+  async function send(blob: Blob, mimeType: string, durationSeconds: number) {
     setBusy(true)
     setError(null)
     try {
@@ -76,6 +76,7 @@ export function VoiceEntryPage() {
       const ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('mpeg') ? 'mp3' : 'webm'
       form.append('audio', blob, `pregled.${ext}`)
       if (hiveCode) form.append('hiveCode', hiveCode)
+      form.append('durationSeconds', String(durationSeconds))
 
       const value = await postForm<VoiceResult>('/ai/voice', form)
       setResult(value)
@@ -168,7 +169,11 @@ export function VoiceEntryPage() {
                 Skenirana košnica: <span className="font-semibold">{hiveCode}</span>
               </p>
             )}
-            <VoiceRecorder onRecorded={(b, t) => void send(b, t)} busy={busy} disabled={status.capReached} />
+            <VoiceRecorder
+              onRecorded={(blob, mimeType, duration) => void send(blob, mimeType, duration)}
+              busy={busy}
+              disabled={status.capReached}
+            />
             {status.capReached && (
               <p className="text-sm text-caution">
                 Mjesečni limit AI funkcija je dosegnut. Obnavlja se prvog u mjesecu.

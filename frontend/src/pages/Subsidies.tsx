@@ -5,17 +5,9 @@ import { Disclaimer } from '@/components/ui/disclaimer'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { StatusPill } from '@/components/ui/status'
 import { formatDate } from '@/lib/format'
+import { SUBSIDY_STATUS_LABELS } from '@/lib/labels'
 import type { SubsidyProgram } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-
-export const SUBSIDY_STATUS_LABELS: Record<string, string> = {
-  considering: 'Razmatram',
-  preparing: 'Priprema',
-  submitted: 'Predano',
-  approved: 'Odobreno',
-  rejected: 'Odbijeno',
-  withdrawn: 'Povučeno',
-}
 
 interface Response {
   programs: SubsidyProgram[]

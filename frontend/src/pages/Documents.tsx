@@ -11,23 +11,13 @@ import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/auth/AuthContext'
 import { api, ApiError } from '@/lib/api'
 import { daysUntil, formatDate } from '@/lib/format'
+import { DOCUMENT_CATEGORY_LABELS } from '@/lib/labels'
 import type { ArchivedDocument, DocumentCategory } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
 import { cn } from '@/lib/utils'
 
 /** §22 — the categories the scenario lists, in its order. */
-export const CATEGORY_LABEL: Record<DocumentCategory, string> = {
-  registration: 'Registracija',
-  annual_report: 'Godišnje dojave',
-  pasture: 'Paše',
-  veterinary: 'Veterina',
-  food_safety: 'Hrana',
-  laboratory: 'Laboratorij',
-  subsidy: 'Potpore',
-  other: 'Ostalo',
-}
-
-const CATEGORIES = Object.keys(CATEGORY_LABEL) as DocumentCategory[]
+const CATEGORIES = Object.keys(DOCUMENT_CATEGORY_LABELS) as DocumentCategory[]
 
 const EMPTY = {
   category: 'registration' as DocumentCategory,
@@ -150,7 +140,7 @@ export function DocumentsPage() {
                   <Select {...p} value={form.category} onChange={(e) => set('category', e.target.value)}>
                     {CATEGORIES.map((key) => (
                       <option key={key} value={key}>
-                        {CATEGORY_LABEL[key]}
+                        {DOCUMENT_CATEGORY_LABELS[key]}
                       </option>
                     ))}
                   </Select>
@@ -220,13 +210,17 @@ export function DocumentsPage() {
             onClick={() => setParams({ kategorija: key })}
             // Spelled out, because the count sits right against the label and a screen reader
             // would otherwise announce the chip as "Registracija2".
-            aria-label={counts[key] ? `${CATEGORY_LABEL[key]}, ${counts[key]}` : CATEGORY_LABEL[key]}
+            aria-label={
+              counts[key]
+                ? `${DOCUMENT_CATEGORY_LABELS[key]}, ${counts[key]}`
+                : DOCUMENT_CATEGORY_LABELS[key]
+            }
             className={cn(
               'min-h-11 shrink-0 rounded-full border px-4 text-xs font-medium',
               category === key ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card',
             )}
           >
-            {CATEGORY_LABEL[key]}
+            {DOCUMENT_CATEGORY_LABELS[key]}
             {counts[key] ? <span className="tabular ml-1 opacity-70">{counts[key]}</span> : null}
           </button>
         ))}
@@ -235,7 +229,11 @@ export function DocumentsPage() {
       {documents.length === 0 ? (
         <EmptyState
           icon={FolderOpen}
-          title={category ? `Nema dokumenata u kategoriji ${CATEGORY_LABEL[category]}` : 'Arhiva je prazna'}
+          title={
+            category
+              ? `Nema dokumenata u kategoriji ${DOCUMENT_CATEGORY_LABELS[category]}`
+              : 'Arhiva je prazna'
+          }
           description="Zapis bez priložene datoteke je i dalje koristan — broj i datum rješenja često su sve što treba."
         />
       ) : (
@@ -248,7 +246,7 @@ export function DocumentsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{doc.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {CATEGORY_LABEL[doc.category]}
+                    {DOCUMENT_CATEGORY_LABELS[doc.category]}
                     {doc.referenceNumber ? ` · ${doc.referenceNumber}` : ''}
                     {doc.issuedOn ? ` · ${formatDate(doc.issuedOn)}` : ''}
                   </p>

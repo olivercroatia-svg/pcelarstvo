@@ -1,103 +1,92 @@
-import { lazy } from 'react'
+import { lazy, type ComponentType } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
 import { BrandMark } from '@/components/BrandMark'
 import { useAuth } from '@/auth/AuthContext'
-import { AdminAiPage } from '@/pages/AdminAi'
-import { AdminCommercePage } from '@/pages/AdminCommerce'
-import { AdminObligationsPage } from '@/pages/AdminObligations'
-import { AdminProductionPage } from '@/pages/AdminProduction'
-import { AiUsagePage } from '@/pages/AiUsage'
-import { AnalyticsPage } from '@/pages/Analytics'
-import { AssistantPage } from '@/pages/Assistant'
-import { ApiariesPage } from '@/pages/Apiaries'
-import { ApiaryDetailPage } from '@/pages/ApiaryDetail'
-import { ApiaryFormPage } from '@/pages/ApiaryForm'
-import { BatchDetailPage } from '@/pages/BatchDetail'
-import { BatchEntryPage } from '@/pages/BatchEntry'
-import { BatchesPage } from '@/pages/Batches'
-import { CustomerDetailPage } from '@/pages/CustomerDetail'
-import { CustomersPage } from '@/pages/Customers'
-import { DashboardPage } from '@/pages/Dashboard'
-import { DocumentsPage } from '@/pages/Documents'
-import { EconomicsPage } from '@/pages/Economics'
-import { EntryPage } from '@/pages/Entry'
-import { ExpensesPage } from '@/pages/Expenses'
-import { FeedingPage } from '@/pages/Feeding'
-import { HarvestDetailPage } from '@/pages/HarvestDetail'
-import { HarvestNewPage } from '@/pages/HarvestNew'
-import { HarvestsPage } from '@/pages/Harvests'
-import { HealthPage } from '@/pages/Health'
-import { HiveDetailPage } from '@/pages/HiveDetail'
-import { HiveLabelsPage } from '@/pages/HiveLabels'
-import { HiveNewPage } from '@/pages/HiveNew'
-import { HivesPage } from '@/pages/Hives'
-import { InspectionPage } from '@/pages/Inspection'
-import { InspectionModePage } from '@/pages/InspectionMode'
-import { InventoryPage } from '@/pages/Inventory'
-import { InventoryItemPage } from '@/pages/InventoryItem'
-import { LabTestDetailPage } from '@/pages/LabTestDetail'
-import { LabTestNewPage } from '@/pages/LabTestNew'
-import { LoginPage } from '@/pages/Login'
-import { MyDataPage } from '@/pages/MyData'
-import { NotificationsPage } from '@/pages/Notifications'
-import { ObligationDetailPage } from '@/pages/ObligationDetail'
-import { ObligationsPage } from '@/pages/Obligations'
-import { PackagingDetailPage } from '@/pages/PackagingDetail'
-import { PackagingNewPage } from '@/pages/PackagingNew'
-import { PasturesPage } from '@/pages/Pastures'
-import { ProductsPage } from '@/pages/Products'
-// PlaceholderPage is gone from the routes now that /obveze is real; the file itself is left in
-// place for the modules still to come.
-import { ProfilePage } from '@/pages/Profile'
-import { QueensPage } from '@/pages/Queens'
-import { ReadinessPage } from '@/pages/Readiness'
-import { RegisterPage } from '@/pages/Register'
-import { RelocationDetailPage } from '@/pages/RelocationDetail'
-import { RelocationsPage } from '@/pages/Relocations'
-import { SaleDetailPage } from '@/pages/SaleDetail'
-import { SaleNewPage } from '@/pages/SaleNew'
-import { SalesPage } from '@/pages/Sales'
-import { SearchPage } from '@/pages/Search'
-import { SeasonPage } from '@/pages/Season'
-import { SubsidiesPage } from '@/pages/Subsidies'
-import { SubsidyDetailPage } from '@/pages/SubsidyDetail'
-import { TimelinePage } from '@/pages/Timeline'
-import { TraceabilityPage } from '@/pages/Traceability'
-import { TreatmentDetailPage } from '@/pages/TreatmentDetail'
-import { TreatmentNewPage } from '@/pages/TreatmentNew'
-import { TreatmentsPage } from '@/pages/Treatments'
-import { VarroaPage } from '@/pages/Varroa'
-import { VarroaNewPage } from '@/pages/VarroaNew'
-import { VisitPage } from '@/pages/Visit'
-import { VmpProductsPage } from '@/pages/VmpProducts'
-import { VoiceEntryPage } from '@/pages/VoiceEntry'
 import { LazyRoute } from '@/components/lazy'
 
-// ZXing is ~400 kB and only needed when the camera is actually opened.
-const ScanPage = lazy(() => import('@/pages/Scan').then((m) => ({ default: m.ScanPage })))
-// The printable data sheet is opened once or twice a year; no reason for it to sit in the bundle
-// a beekeeper downloads to record an inspection.
-const FormPreviewPage = lazy(() =>
-  import('@/pages/FormPreview').then((m) => ({ default: m.FormPreviewPage })),
-)
-// Printed when a batch is jarred, a handful of times a season.
-const DeclarationPage = lazy(() =>
-  import('@/pages/Declaration').then((m) => ({ default: m.DeclarationPage })),
-)
-// §35 — reached by strangers with a phone camera, never from inside the application. Kept out of
-// the main chunk so a customer scanning a jar downloads a page, not a beekeeping app.
-const PublicJarPage = lazy(() => import('@/pages/PublicJar').then((m) => ({ default: m.PublicJarPage })))
-// §49 — fourteen sections and a print stylesheet, opened once a year. Same reasoning as the forms
-// and the declaration: it has no business in the bundle a beekeeper downloads on a hillside.
-const AnnualReportPage = lazy(() =>
-  import('@/pages/AnnualReport').then((m) => ({ default: m.AnnualReportPage })),
-)
-// §65, §66 — written for someone who does not have the app yet. A beekeeper opening the installed
-// PWA to record a visit should not download the sales pitch on the way to the dashboard.
-const LandingPage = lazy(() => import('@/pages/Landing').then((m) => ({ default: m.LandingPage })))
-// §56 — read before signing up, and reachable from the footer without an account.
-const PrivacyPage = lazy(() => import('@/pages/Privacy').then((m) => ({ default: m.PrivacyPage })))
+/** Every route owns a chunk; opening the dashboard no longer downloads the entire application. */
+function lazyPage(loader: () => Promise<unknown>, exportName: string) {
+  return lazy(async () => {
+    const module = (await loader()) as Record<string, ComponentType>
+    return { default: module[exportName]! }
+  })
+}
+
+const AdminAiPage = lazyPage(() => import('@/pages/AdminAi'), 'AdminAiPage')
+const AdminCommercePage = lazyPage(() => import('@/pages/AdminCommerce'), 'AdminCommercePage')
+const AdminObligationsPage = lazyPage(() => import('@/pages/AdminObligations'), 'AdminObligationsPage')
+const AdminProductionPage = lazyPage(() => import('@/pages/AdminProduction'), 'AdminProductionPage')
+const AiUsagePage = lazyPage(() => import('@/pages/AiUsage'), 'AiUsagePage')
+const AnalyticsPage = lazyPage(() => import('@/pages/Analytics'), 'AnalyticsPage')
+const AnnualReportPage = lazyPage(() => import('@/pages/AnnualReport'), 'AnnualReportPage')
+const ApiariesPage = lazyPage(() => import('@/pages/Apiaries'), 'ApiariesPage')
+const ApiaryDetailPage = lazyPage(() => import('@/pages/ApiaryDetail'), 'ApiaryDetailPage')
+const ApiaryFormPage = lazyPage(() => import('@/pages/ApiaryForm'), 'ApiaryFormPage')
+const AssistantPage = lazyPage(() => import('@/pages/Assistant'), 'AssistantPage')
+const BatchDetailPage = lazyPage(() => import('@/pages/BatchDetail'), 'BatchDetailPage')
+const BatchEntryPage = lazyPage(() => import('@/pages/BatchEntry'), 'BatchEntryPage')
+const BatchesPage = lazyPage(() => import('@/pages/Batches'), 'BatchesPage')
+const CustomerDetailPage = lazyPage(() => import('@/pages/CustomerDetail'), 'CustomerDetailPage')
+const CustomersPage = lazyPage(() => import('@/pages/Customers'), 'CustomersPage')
+const DashboardPage = lazyPage(() => import('@/pages/Dashboard'), 'DashboardPage')
+const DeclarationPage = lazyPage(() => import('@/pages/Declaration'), 'DeclarationPage')
+const DocumentsPage = lazyPage(() => import('@/pages/Documents'), 'DocumentsPage')
+const EconomicsPage = lazyPage(() => import('@/pages/Economics'), 'EconomicsPage')
+const EntryPage = lazyPage(() => import('@/pages/Entry'), 'EntryPage')
+const ExpensesPage = lazyPage(() => import('@/pages/Expenses'), 'ExpensesPage')
+const FeedingPage = lazyPage(() => import('@/pages/Feeding'), 'FeedingPage')
+const FormPreviewPage = lazyPage(() => import('@/pages/FormPreview'), 'FormPreviewPage')
+const HarvestDetailPage = lazyPage(() => import('@/pages/HarvestDetail'), 'HarvestDetailPage')
+const HarvestNewPage = lazyPage(() => import('@/pages/HarvestNew'), 'HarvestNewPage')
+const HarvestsPage = lazyPage(() => import('@/pages/Harvests'), 'HarvestsPage')
+const HealthPage = lazyPage(() => import('@/pages/Health'), 'HealthPage')
+const HiveDetailPage = lazyPage(() => import('@/pages/HiveDetail'), 'HiveDetailPage')
+const HiveLabelsPage = lazyPage(() => import('@/pages/HiveLabels'), 'HiveLabelsPage')
+const HiveNewPage = lazyPage(() => import('@/pages/HiveNew'), 'HiveNewPage')
+const HivesPage = lazyPage(() => import('@/pages/Hives'), 'HivesPage')
+const InspectionModePage = lazyPage(() => import('@/pages/InspectionMode'), 'InspectionModePage')
+const InspectionPage = lazyPage(() => import('@/pages/Inspection'), 'InspectionPage')
+const InventoryItemPage = lazyPage(() => import('@/pages/InventoryItem'), 'InventoryItemPage')
+const InventoryPage = lazyPage(() => import('@/pages/Inventory'), 'InventoryPage')
+const LabTestDetailPage = lazyPage(() => import('@/pages/LabTestDetail'), 'LabTestDetailPage')
+const LabTestNewPage = lazyPage(() => import('@/pages/LabTestNew'), 'LabTestNewPage')
+const LandingPage = lazyPage(() => import('@/pages/Landing'), 'LandingPage')
+const LoginPage = lazyPage(() => import('@/pages/Login'), 'LoginPage')
+const MyDataPage = lazyPage(() => import('@/pages/MyData'), 'MyDataPage')
+const NotificationsPage = lazyPage(() => import('@/pages/Notifications'), 'NotificationsPage')
+const ObligationDetailPage = lazyPage(() => import('@/pages/ObligationDetail'), 'ObligationDetailPage')
+const ObligationsPage = lazyPage(() => import('@/pages/Obligations'), 'ObligationsPage')
+const PackagingDetailPage = lazyPage(() => import('@/pages/PackagingDetail'), 'PackagingDetailPage')
+const PackagingNewPage = lazyPage(() => import('@/pages/PackagingNew'), 'PackagingNewPage')
+const PasturesPage = lazyPage(() => import('@/pages/Pastures'), 'PasturesPage')
+const PrivacyPage = lazyPage(() => import('@/pages/Privacy'), 'PrivacyPage')
+const ProductsPage = lazyPage(() => import('@/pages/Products'), 'ProductsPage')
+const ProfilePage = lazyPage(() => import('@/pages/Profile'), 'ProfilePage')
+const PublicJarPage = lazyPage(() => import('@/pages/PublicJar'), 'PublicJarPage')
+const QueensPage = lazyPage(() => import('@/pages/Queens'), 'QueensPage')
+const ReadinessPage = lazyPage(() => import('@/pages/Readiness'), 'ReadinessPage')
+const RegisterPage = lazyPage(() => import('@/pages/Register'), 'RegisterPage')
+const RelocationDetailPage = lazyPage(() => import('@/pages/RelocationDetail'), 'RelocationDetailPage')
+const RelocationsPage = lazyPage(() => import('@/pages/Relocations'), 'RelocationsPage')
+const SaleDetailPage = lazyPage(() => import('@/pages/SaleDetail'), 'SaleDetailPage')
+const SaleNewPage = lazyPage(() => import('@/pages/SaleNew'), 'SaleNewPage')
+const SalesPage = lazyPage(() => import('@/pages/Sales'), 'SalesPage')
+const ScanPage = lazyPage(() => import('@/pages/Scan'), 'ScanPage')
+const SearchPage = lazyPage(() => import('@/pages/Search'), 'SearchPage')
+const SeasonPage = lazyPage(() => import('@/pages/Season'), 'SeasonPage')
+const SubsidiesPage = lazyPage(() => import('@/pages/Subsidies'), 'SubsidiesPage')
+const SubsidyDetailPage = lazyPage(() => import('@/pages/SubsidyDetail'), 'SubsidyDetailPage')
+const TimelinePage = lazyPage(() => import('@/pages/Timeline'), 'TimelinePage')
+const TraceabilityPage = lazyPage(() => import('@/pages/Traceability'), 'TraceabilityPage')
+const TreatmentDetailPage = lazyPage(() => import('@/pages/TreatmentDetail'), 'TreatmentDetailPage')
+const TreatmentNewPage = lazyPage(() => import('@/pages/TreatmentNew'), 'TreatmentNewPage')
+const TreatmentsPage = lazyPage(() => import('@/pages/Treatments'), 'TreatmentsPage')
+const VarroaNewPage = lazyPage(() => import('@/pages/VarroaNew'), 'VarroaNewPage')
+const VarroaPage = lazyPage(() => import('@/pages/Varroa'), 'VarroaPage')
+const VisitPage = lazyPage(() => import('@/pages/Visit'), 'VisitPage')
+const VmpProductsPage = lazyPage(() => import('@/pages/VmpProducts'), 'VmpProductsPage')
+const VoiceEntryPage = lazyPage(() => import('@/pages/VoiceEntry'), 'VoiceEntryPage')
 
 function BootSplash() {
   return (
@@ -153,8 +142,8 @@ export function App() {
       <Route path="/privatnost" element={<LazyRoute><PrivacyPage /></LazyRoute>} />
 
       <Route element={<RequireAnonymous />}>
-        <Route path="/prijava" element={<LoginPage />} />
-        <Route path="/registracija" element={<RegisterPage />} />
+        <Route path="/prijava" element={<LazyRoute><LoginPage /></LazyRoute>} />
+        <Route path="/registracija" element={<LazyRoute><RegisterPage /></LazyRoute>} />
       </Route>
 
       <Route element={<RequireAuth />}>

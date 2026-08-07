@@ -11,18 +11,8 @@ import { useAuth } from '@/auth/AuthContext'
 import { api, ApiError } from '@/lib/api'
 import { formatDate, formatNumber } from '@/lib/format'
 import type { NationalReadiness, PackagingRun } from '@/lib/types'
+import { jarUrl } from '@/lib/urls'
 import { useResource } from '@/lib/useResource'
-
-/**
- * The public address printed on the jar. Same reasoning as hiveScanUrl: a full deep link, so a
- * phone's own camera app opens the page without an app in between.
- *
- * Defined here rather than imported from components/QrCode so this page does not statically pull
- * the qrcode library into the main chunk — which is exactly how that module ends up there today.
- */
-export function jarUrl(token: string): string {
-  return `${window.location.origin}${import.meta.env.BASE_URL}staklenka/${token}`
-}
 
 /** §33 packaging run, §35 its public page, §36 the national-jar checklist. */
 export function PackagingDetailPage() {

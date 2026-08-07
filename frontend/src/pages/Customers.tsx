@@ -8,16 +8,9 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { useToast } from '@/components/ui/toast'
 import { api, ApiError } from '@/lib/api'
 import { formatDate, formatEur } from '@/lib/format'
+import { CUSTOMER_KIND_LABELS } from '@/lib/labels'
 import type { Customer, CustomerKind } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-
-export const CUSTOMER_KIND_LABELS: Record<CustomerKind, string> = {
-  person: 'Fizička osoba',
-  company: 'Tvrtka',
-  shop: 'Trgovina',
-  restaurant: 'Restoran',
-  distributor: 'Distributer',
-}
 
 /** §38 — the address book. Business buyers carry an OIB, which is why this is owner-only (§56). */
 export function CustomersPage() {

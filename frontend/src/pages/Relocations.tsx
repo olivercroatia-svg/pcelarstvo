@@ -9,14 +9,9 @@ import { StatusPill } from '@/components/ui/status'
 import { useToast } from '@/components/ui/toast'
 import { api, ApiError } from '@/lib/api'
 import { formatDate, todayIso } from '@/lib/format'
+import { RELOCATION_STATUS } from '@/lib/labels'
 import type { Apiary, Relocation } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-
-export const RELOCATION_STATUS: Record<string, string> = {
-  planned: 'Planirano',
-  done: 'Obavljeno',
-  cancelled: 'Otkazano',
-}
 
 /** §21 — "Seleće pčelarenje". The list; the checklist lives on the card. */
 export function RelocationsPage() {

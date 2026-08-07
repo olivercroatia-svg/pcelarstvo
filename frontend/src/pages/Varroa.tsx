@@ -8,33 +8,15 @@ import { Select } from '@/components/ui/field'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { StatusPill } from '@/components/ui/status'
 import { formatDate, formatNumber } from '@/lib/format'
-import type { ObligationLevel, VarroaCheck, VarroaLevel, VarroaResponse } from '@/lib/types'
+import { VARROA_METHOD_LABELS, VARROA_PHASE_LABELS, varroaLevelTone } from '@/lib/labels'
+import type { VarroaCheck, VarroaLevel, VarroaResponse } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-
-export const METHOD_LABEL: Record<string, string> = {
-  natural_fall: 'Prirodni pad',
-  powdered_sugar: 'Šećer u prahu',
-  alcohol_wash: 'Alkoholno ispiranje',
-  co2: 'CO₂ metoda',
-  other: 'Druga metoda',
-}
-
-export const PHASE_LABEL: Record<string, string> = {
-  before_treatment: 'prije tretmana',
-  after_treatment: 'nakon tretmana',
-  routine: 'redovna kontrola',
-}
 
 const LEVEL_LABEL: Record<VarroaLevel, string> = {
   low: 'Nisko',
   moderate: 'Povišeno',
   high: 'Visoko',
   unknown: 'Bez ocjene',
-}
-
-/** Maps the varroa scale onto the app's shared status vocabulary. */
-export function levelTone(level: VarroaLevel): ObligationLevel {
-  return level === 'high' ? 'critical' : level === 'moderate' ? 'caution' : level === 'low' ? 'ok' : 'info'
 }
 
 const chartTone = (level: VarroaLevel) =>
@@ -49,14 +31,14 @@ function CheckRow({ check }: { check: VarroaCheck }) {
     <li className="border-b border-border py-3 last:border-0 last:pb-0">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm font-medium">{formatDate(check.checkedOn)}</span>
-        <StatusPill level={levelTone(check.level)}>{LEVEL_LABEL[check.level]}</StatusPill>
+        <StatusPill level={varroaLevelTone(check.level)}>{LEVEL_LABEL[check.level]}</StatusPill>
       </div>
       <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm">
         <span className="tabular text-lg font-semibold">
           {formatNumber(value)} {unit}
         </span>
         <span className="text-xs text-muted-foreground">
-          {METHOD_LABEL[check.method]} · {PHASE_LABEL[check.phase]}
+          {VARROA_METHOD_LABELS[check.method]} · {VARROA_PHASE_LABELS[check.phase]}
         </span>
       </p>
       <p className="text-xs text-muted-foreground">
@@ -88,7 +70,7 @@ export function VarroaPage() {
       date: p.date,
       value: p.value,
       tone: chartTone(p.level),
-      label: `${formatDate(p.date)} (${PHASE_LABEL[p.phase]})`,
+      label: `${formatDate(p.date)} (${VARROA_PHASE_LABELS[p.phase]})`,
     }))
 
   const sample = toPoints(data.series.sample)

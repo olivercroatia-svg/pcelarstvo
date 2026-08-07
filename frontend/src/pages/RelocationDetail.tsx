@@ -12,7 +12,7 @@ import { api, ApiError } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 import type { Relocation } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-import { RELOCATION_STATUS } from './Relocations'
+import { RELOCATION_STATUS } from '@/lib/labels'
 
 interface DocumentOption {
   id: string

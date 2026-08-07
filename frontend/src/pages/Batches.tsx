@@ -6,15 +6,9 @@ import { Select } from '@/components/ui/field'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { StatusPill } from '@/components/ui/status'
 import { formatDate, formatNumber } from '@/lib/format'
-import type { BatchStatus, HoneyBatch, ObligationLevel } from '@/lib/types'
+import { BATCH_STATUS } from '@/lib/labels'
+import type { BatchStatus, HoneyBatch } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
-
-export const BATCH_STATUS: Record<BatchStatus, { label: string; level: ObligationLevel }> = {
-  open: { label: 'U obradi', level: 'info' },
-  ready: { label: 'Spremno', level: 'ok' },
-  blocked: { label: 'Zadržano', level: 'critical' },
-  closed: { label: 'Zatvoreno', level: 'info' },
-}
 
 /** §29 — the LOT list. */
 export function BatchesPage() {

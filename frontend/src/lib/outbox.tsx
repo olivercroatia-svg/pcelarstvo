@@ -8,8 +8,10 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useAuth } from '@/auth/AuthContext'
 import { api, ApiError } from './api'
 import { db, type OutboxItem, type OutboxKind } from './db'
+import { belongsToScope, type OutboxScope } from './outboxScope'
 
 interface OutboxApi {
   pending: OutboxItem[]
@@ -27,24 +29,53 @@ const OutboxContext = createContext<OutboxApi | null>(null)
 const PERMANENT = new Set([400, 403, 404, 409, 413, 422])
 
 export function OutboxProvider({ children }: { children: ReactNode }) {
+  const { current } = useAuth()
   const [pending, setPending] = useState<OutboxItem[]>([])
   const [online, setOnline] = useState(navigator.onLine)
   const [syncing, setSyncing] = useState(false)
   const running = useRef(false)
+  const userId = current?.user.id ?? null
+  const farmId = current?.farm?.id ?? null
+  const scope = useMemo<OutboxScope | null>(
+    () => (userId && farmId ? { userId, farmId } : null),
+    [userId, farmId],
+  )
+  const scopeRef = useRef(scope)
+  scopeRef.current = scope
+
+  const scopedItems = useCallback(async () => {
+    if (!scope) return []
+    const items = await db.outbox
+      .where('[userId+farmId]')
+      .equals([scope.userId, scope.farmId])
+      .sortBy('createdAt')
+    return items.filter((item) => belongsToScope(item, scope))
+  }, [scope])
 
   const refresh = useCallback(async () => {
-    setPending(await db.outbox.orderBy('createdAt').toArray())
-  }, [])
+    const items = await scopedItems()
+    const activeScope = scopeRef.current
+    if (
+      (scope === null && activeScope === null) ||
+      (scope !== null &&
+        activeScope?.userId === scope.userId &&
+        activeScope.farmId === scope.farmId)
+    ) {
+      setPending(items)
+    }
+  }, [scope, scopedItems])
 
   const flush = useCallback(async () => {
     // A second flush while one is in flight would send the same item twice. Harmless thanks to
     // server-side idempotency, but it doubles traffic on exactly the connection that is struggling.
-    if (running.current || !navigator.onLine) return
+    if (running.current || !navigator.onLine || !scope) return
     running.current = true
     setSyncing(true)
 
     try {
-      for (const item of await db.outbox.orderBy('createdAt').toArray()) {
+      for (const item of await scopedItems()) {
+        const activeScope = scopeRef.current
+        if (!activeScope || !belongsToScope(item, activeScope)) break
         try {
           await api(item.path, { method: 'POST', body: item.payload })
           await db.outbox.delete(item.id)
@@ -78,23 +109,25 @@ export function OutboxProvider({ children }: { children: ReactNode }) {
       setSyncing(false)
       await refresh()
     }
-  }, [refresh])
+  }, [refresh, scope, scopedItems])
 
   const enqueue = useCallback<OutboxApi['enqueue']>(
     async (item) => {
-      await db.outbox.put({ ...item, createdAt: Date.now(), attempts: 0, lastError: null })
+      if (!scope) throw new Error('Offline zapis zahtijeva prijavljenog korisnika i gospodarstvo')
+      await db.outbox.put({ ...item, ...scope, createdAt: Date.now(), attempts: 0, lastError: null })
       await refresh()
       void flush()
     },
-    [flush, refresh],
+    [flush, refresh, scope],
   )
 
   const discard = useCallback(
     async (id: string) => {
-      await db.outbox.delete(id)
+      const item = await db.outbox.get(id)
+      if (item && scope && belongsToScope(item, scope)) await db.outbox.delete(id)
       await refresh()
     },
-    [refresh],
+    [refresh, scope],
   )
 
   useEffect(() => {
@@ -119,9 +152,14 @@ export function OutboxProvider({ children }: { children: ReactNode }) {
     }
   }, [flush, refresh])
 
+  const visiblePending = useMemo(
+    () => (scope ? pending.filter((item) => belongsToScope(item, scope)) : []),
+    [pending, scope],
+  )
+
   const value = useMemo<OutboxApi>(
-    () => ({ pending, online, syncing, enqueue, flush, discard }),
-    [pending, online, syncing, enqueue, flush, discard],
+    () => ({ pending: visiblePending, online, syncing, enqueue, flush, discard }),
+    [visiblePending, online, syncing, enqueue, flush, discard],
   )
 
   return <OutboxContext value={value}>{children}</OutboxContext>
