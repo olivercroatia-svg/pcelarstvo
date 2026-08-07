@@ -448,3 +448,276 @@ export interface InspectionModeData {
   }[]
   generatedOn: string
 }
+
+// ──────────────────────────────────────────────── Etapa 3 — proizvodnja (§28–§36)
+
+export interface Harvest {
+  id: string
+  apiaryId: string
+  apiaryName: string | null
+  harvestedOn: string
+  pasture: string
+  hiveRange: string | null
+  framesCount: number | null
+  notes: string | null
+  hiveCount: number
+  by: string | null
+  createdAt: string
+  /** Joined from the batch the extraction produced — the LOT is what a beekeeper searches by. */
+  lotCode: string | null
+  honeyType: string | null
+  totalKg: number | null
+  availableKg: number | null
+}
+
+export type BatchStatus = 'open' | 'ready' | 'blocked' | 'closed'
+
+export interface HoneyBatch {
+  id: string
+  harvestId: string
+  lotCode: string
+  honeyType: string
+  totalKg: number
+  packedKg: number
+  availableKg: number
+  moisturePercent: number | null
+  status: BatchStatus
+  bestBefore: string | null
+  notes: string | null
+  harvestedOn: string | null
+  pasture: string | null
+  apiaryId: string | null
+  apiaryName: string | null
+  labTests: number
+  packagingRuns: number
+  jarsPacked: number
+  createdAt: string
+}
+
+/** §67 — a treatment whose withdrawal period covered the day the honey was taken. */
+export interface WithdrawalConflict {
+  treatmentId: string
+  productName: string
+  startedOn: string | null
+  endedOn: string | null
+  withdrawalUntil: string | null
+  kind: 'active' | 'open'
+}
+
+export interface HarvestContainer {
+  id: string
+  name: string
+  amountKg: number
+}
+
+export interface HarvestDetail {
+  harvest: Harvest
+  batch: HoneyBatch | null
+  hives: { id: string; code: string }[]
+  containers: HarvestContainer[]
+  containerTotalKg: number
+  containerMismatchKg: number
+  withdrawalConflicts: WithdrawalConflict[]
+}
+
+export type LabVerdict = 'pass' | 'fail' | 'unrated'
+
+export interface LabParameter {
+  code: string
+  name: string
+  unit: string | null
+  minValue: number | null
+  maxValue: number | null
+  note: string | null
+  decimals: number
+  sortOrder: number
+  active: boolean
+}
+
+export interface LabReading extends LabParameter {
+  value: number | null
+  verdict: LabVerdict
+}
+
+export interface LabTest {
+  id: string
+  batchId: string
+  lotCode: string | null
+  laboratory: string | null
+  reportNumber: string | null
+  sampledOn: string | null
+  testedOn: string | null
+  documentId: string | null
+  notes: string | null
+  readings: LabReading[]
+  verdict: LabVerdict
+  createdAt: string
+}
+
+export interface Product {
+  id: string
+  name: string
+  honeyType: string | null
+  netWeightG: number
+  storageConditions: string | null
+  countryOfOrigin: string | null
+  shelfLifeMonths: number | null
+  active: boolean
+  notes: string | null
+}
+
+export interface PackagingRun {
+  id: string
+  batchId: string
+  lotCode: string | null
+  honeyType: string | null
+  productId: string | null
+  productName: string | null
+  packagedOn: string
+  jarSizeG: number
+  jarCount: number
+  totalKg: number
+  bestBefore: string | null
+  isNational: boolean
+  serialFrom: string | null
+  serialTo: string | null
+  publicToken: string | null
+  notes: string | null
+  createdAt: string
+}
+
+export interface Declaration {
+  productName: string
+  producer: string
+  responsiblePerson: string | null
+  oib: string | null
+  address: string
+  netWeightG: number
+  countryOfOrigin: string
+  lotCode: string
+  honeyType: string
+  harvestedOn: string | null
+  packagedOn: string | null
+  bestBefore: string | null
+  storageConditions: string | null
+  mandatoryNotice: string | null
+  nationalNotice: string | null
+  isNational: boolean
+  serialFrom: string | null
+  serialTo: string | null
+  jarCount: number
+}
+
+export interface NationalReadiness {
+  isNational: boolean
+  ready: boolean
+  checks: { key: string; label: string; ok: boolean; detail: string | null }[]
+}
+
+export type InventoryCategory = 'packaging' | 'vmp' | 'feed' | 'equipment' | 'other'
+
+export interface InventoryItem {
+  id: string
+  category: InventoryCategory
+  name: string
+  unit: string
+  quantity: number
+  minQuantity: number | null
+  low: boolean
+  lotNumber: string | null
+  expiresOn: string | null
+  expired: boolean
+  notes: string | null
+}
+
+export interface HoneyStock {
+  honeyType: string
+  availableKg: number
+  totalKg: number
+  packedKg: number
+  batches: number
+}
+
+export interface InventoryMovement {
+  id: string
+  movedOn: string
+  delta: number
+  reason: string
+  referenceType: string | null
+  referenceId: string | null
+  note: string | null
+  by: string | null
+  createdAt: string
+}
+
+/** §30 — the whole chain behind one jar. */
+export interface TraceabilityChain {
+  batch: {
+    id: string
+    lotCode: string
+    honeyType: string
+    totalKg: number
+    packedKg: number
+    availableKg: number
+    moisturePercent: number | null
+    status: BatchStatus
+    bestBefore: string | null
+  }
+  harvest: {
+    id: string
+    harvestedOn: string
+    pasture: string
+    hiveRange: string | null
+    framesCount: number | null
+    containers: { name: string; amountKg: number }[]
+  }
+  apiary: { id: string; name: string }
+  hives: { id: string; code: string; queenCode: string | null; queenYear: number | null; queenLine: string | null }[]
+  treatments: {
+    id: string
+    productName: string
+    activeSubstance: string | null
+    lotNumber: string | null
+    startedOn: string | null
+    endedOn: string | null
+    withdrawalUntil: string | null
+  }[]
+  withdrawalConflicts: WithdrawalConflict[]
+  labTests: {
+    id: string
+    laboratory: string | null
+    reportNumber: string | null
+    testedOn: string | null
+    documentId: string | null
+    verdict: LabVerdict
+    readings: LabReading[]
+  }[]
+  packaging: {
+    id: string
+    packagedOn: string
+    productName: string | null
+    jarSizeG: number
+    jarCount: number
+    totalKg: number
+    isNational: boolean
+    serialFrom: string | null
+    serialTo: string | null
+    published: boolean
+    publicToken: string | null
+  }[]
+  sales: unknown[]
+}
+
+/** §35 — everything the public jar page is allowed to know. Mirrors the server's SELECT list. */
+export interface PublicJar {
+  productName: string
+  honeyType: string
+  producer: string
+  place: string | null
+  harvestYear: number | null
+  pasture: string
+  lotCode: string
+  laboratoryChecked: boolean
+  netWeightG: number
+  isNational: boolean
+}
