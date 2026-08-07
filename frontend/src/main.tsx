@@ -5,6 +5,7 @@ import { App } from '@/App'
 import { AuthProvider } from '@/auth/AuthContext'
 import { ConfirmProvider } from '@/components/ui/confirm'
 import { ToastProvider } from '@/components/ui/toast'
+import { OutboxProvider } from '@/lib/outbox'
 import { ThemeProvider } from '@/lib/theme'
 import '@/index.css'
 
@@ -17,7 +18,9 @@ createRoot(document.getElementById('root')!).render(
         <ToastProvider>
           <ConfirmProvider>
             <AuthProvider>
-              <App />
+              <OutboxProvider>
+                <App />
+              </OutboxProvider>
             </AuthProvider>
           </ConfirmProvider>
         </ToastProvider>
