@@ -3,10 +3,13 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
 import { BrandMark } from '@/components/BrandMark'
 import { useAuth } from '@/auth/AuthContext'
+import { AdminAiPage } from '@/pages/AdminAi'
 import { AdminCommercePage } from '@/pages/AdminCommerce'
 import { AdminObligationsPage } from '@/pages/AdminObligations'
 import { AdminProductionPage } from '@/pages/AdminProduction'
+import { AiUsagePage } from '@/pages/AiUsage'
 import { AnalyticsPage } from '@/pages/Analytics'
+import { AssistantPage } from '@/pages/Assistant'
 import { ApiariesPage } from '@/pages/Apiaries'
 import { ApiaryDetailPage } from '@/pages/ApiaryDetail'
 import { ApiaryFormPage } from '@/pages/ApiaryForm'
@@ -67,6 +70,7 @@ import { VarroaPage } from '@/pages/Varroa'
 import { VarroaNewPage } from '@/pages/VarroaNew'
 import { VisitPage } from '@/pages/Visit'
 import { VmpProductsPage } from '@/pages/VmpProducts'
+import { VoiceEntryPage } from '@/pages/VoiceEntry'
 import { LazyRoute } from '@/components/lazy'
 
 // ZXing is ~400 kB and only needed when the camera is actually opened.
@@ -203,6 +207,12 @@ export function App() {
           <Route path="/analitika" element={<AnalyticsPage />} />
           <Route path="/dnevnik" element={<TimelinePage />} />
           <Route path="/trazi" element={<SearchPage />} />
+          {/* AI sloj (§13, §45). The screens check /api/ai/status themselves and explain
+              their own absence, so the routes exist even where no key is configured — a 404
+              on a link the drawer just showed is worse than a page that says why. */}
+          <Route path="/asistent" element={<AssistantPage />} />
+          <Route path="/glasovni-unos" element={<VoiceEntryPage />} />
+          <Route path="/ai-potrosnja" element={<AiUsagePage />} />
           <Route path="/izvjestaj" element={<LazyRoute><AnnualReportPage /></LazyRoute>} />
 
           {/* Komercijala (§37–§40, §50). The API answers 403 for a worker; these routes exist for
@@ -221,6 +231,7 @@ export function App() {
           <Route path="/admin/obveze" element={<AdminObligationsPage />} />
           <Route path="/admin/proizvodnja" element={<AdminProductionPage />} />
           <Route path="/admin/sezona" element={<AdminCommercePage />} />
+          <Route path="/admin/ai" element={<AdminAiPage />} />
         </Route>
       </Route>
 

@@ -1,8 +1,9 @@
-import { ArrowRight, ChevronRight, ClipboardCheck, CloudOff, Grid2x2 } from 'lucide-react'
+import { ArrowRight, ChevronRight, ClipboardCheck, CloudOff, Grid2x2, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusPill } from '@/components/ui/status'
 import { useAuth } from '@/auth/AuthContext'
+import { useAiStatus } from '@/lib/ai'
 import { formatEur, formatNumber, plural } from '@/lib/format'
 import { useOutbox } from '@/lib/outbox'
 import type { Apiary, Economics, Hive, HoneyBatch, ObligationCard } from '@/lib/types'
@@ -47,6 +48,7 @@ function Stat({ value, label, to }: { value: number; label: string; to?: string 
 
 export function DashboardPage() {
   const { current } = useAuth()
+  const { status: ai } = useAiStatus()
   const { pending } = useOutbox()
 
   const { data: apiaryData } = useResource<{ apiaries: Apiary[] }>('/apiaries')
@@ -82,6 +84,20 @@ export function DashboardPage() {
         </h1>
         <p className="text-sm text-muted-foreground">Vaš pčelinjak danas</p>
       </div>
+
+      {/* §45 — one line, not a card. The assistant is the newest thing here and the easiest to
+          overlook in a drawer, but it is not what a beekeeper opens the app for; the obligations
+          and the stale hives below it are. Absent entirely when no key is configured. */}
+      {ai.assistant && (
+        <Link
+          to="/asistent"
+          className="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-card px-3 text-sm hover:bg-accent"
+        >
+          <Sparkles className="size-4 shrink-0 text-primary" aria-hidden />
+          <span className="min-w-0 flex-1">Pitajte asistenta o svojim zapisima</span>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </Link>
+      )}
 
       {pending.length > 0 && (
         <Link to="/unos">

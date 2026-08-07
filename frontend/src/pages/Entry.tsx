@@ -5,6 +5,7 @@ import {
   Droplets,
   HeartPulse,
   Layers,
+  Mic,
   Play,
   QrCode,
   Receipt,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
+import { useAiStatus } from '@/lib/ai'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useConfirm } from '@/components/ui/confirm'
@@ -32,6 +34,7 @@ export function EntryPage() {
   const { pending, online, syncing, flush, discard } = useOutbox()
   const { current } = useAuth()
   const confirm = useConfirm()
+  const { status: ai } = useAiStatus()
   const isOwner = current?.role === 'owner'
 
   async function drop(id: string, label: string) {
@@ -69,6 +72,24 @@ export function EntryPage() {
           <span className="block text-sm text-muted-foreground">Isti zapis na više košnica</span>
         </span>
       </Link>
+
+      {/* §13 — third, not first. Scanning a hive is still the fastest path and the one that works
+          with no signal and no key; dictating is what you reach for with both hands full. Hidden
+          entirely when the server has no transcription configured, rather than shown and refused. */}
+      {ai.voice && (
+        <Link
+          to="/glasovni-unos"
+          className="flex min-h-20 items-center gap-4 rounded-xl border border-border bg-card px-5"
+        >
+          <Mic className="size-8 shrink-0 text-primary" />
+          <span>
+            <span className="block font-semibold">Glasovni unos</span>
+            <span className="block text-sm text-muted-foreground">
+              Recite pregled, aplikacija ispuni obrazac
+            </span>
+          </span>
+        </Link>
+      )}
 
       {/* §12 — the other things recorded in the field, including everything a worker may enter. */}
       <Card>

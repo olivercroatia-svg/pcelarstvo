@@ -26,6 +26,8 @@ import {
   Plus,
   Receipt,
   Search,
+  Sparkles,
+  Gauge,
   Settings2,
   ShoppingCart,
   Sun,
@@ -108,6 +110,9 @@ const DRAWER_GROUPS: {
       { to: '/selidbe', label: 'Selidbe', icon: Truck },
       { to: '/dnevnik', label: 'Dnevnik', icon: NotebookPen },
       { to: '/analitika', label: 'Analitika', icon: BarChart3 },
+      // §45 — grouped with the other reading tools rather than given a header icon: the header
+      // already carries five things at 390 px, and a sixth pushes the farm name to an ellipsis.
+      { to: '/asistent', label: 'AI asistent', icon: Sparkles },
     ],
   },
   {
@@ -136,6 +141,8 @@ const OWNER_GROUP: (typeof DRAWER_GROUPS)[number] = {
     { to: '/troskovi', label: 'Troškovi', icon: Receipt },
     { to: '/ekonomika', label: 'Ekonomika', icon: TrendingUp },
     { to: '/potpore', label: 'Potpore', icon: HandCoins },
+    // §4 — the AI meter is a cost report, so it belongs in the owner's group with the rest.
+    { to: '/ai-potrosnja', label: 'Potrošnja AI', icon: Gauge },
   ],
 }
 
