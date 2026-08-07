@@ -16,11 +16,16 @@ import { feedingsRouter, healthEventsRouter } from './routes/health.js'
 import { hivesRouter } from './routes/hives.js'
 import { inspectionRouter } from './routes/inspection.js'
 import { inspectionsRouter } from './routes/inspections.js'
+import { inventoryRouter } from './routes/inventory.js'
+import { labRouter } from './routes/lab.js'
 import { meRouter } from './routes/me.js'
 import { notificationsRouter } from './routes/notifications.js'
 import { obligationsRouter } from './routes/obligations.js'
+import { packagingRouter, productsRouter } from './routes/packaging.js'
 import { photosRouter } from './routes/photos.js'
+import { batchesRouter, harvestsRouter } from './routes/production.js'
 import { queensRouter } from './routes/queens.js'
+import { publicRouter, traceabilityRouter } from './routes/traceability.js'
 import { treatmentsRouter, vmpRouter } from './routes/treatments.js'
 import { varroaRouter } from './routes/varroa.js'
 import { visitsRouter } from './routes/visits.js'
@@ -86,6 +91,20 @@ app.use('/api/notifications', requireAuth, notificationsRouter)
 app.use('/api/documents', requireAuth, documentsRouter)
 app.use('/api/forms', requireAuth, formsRouter)
 app.use('/api/inspection-mode', requireAuth, inspectionRouter)
+
+// Proizvodnja i sljedivost (§28–§36).
+app.use('/api/harvests', requireAuth, harvestsRouter)
+app.use('/api/batches', requireAuth, batchesRouter)
+app.use('/api/lab', requireAuth, labRouter)
+app.use('/api/products', requireAuth, productsRouter)
+app.use('/api/packaging', requireAuth, packagingRouter)
+app.use('/api/inventory', requireAuth, inventoryRouter)
+app.use('/api/traceability', requireAuth, traceabilityRouter)
+
+// §35 — the only unauthenticated data route in the application. Deliberately mounted apart from
+// everything else and without requireAuth, so it can never pick up a farm scope by accident: what
+// it may reveal is fixed by its own SELECT list, in routes/traceability.ts.
+app.use('/api/public', publicRouter)
 
 // §54 — regulatory parameters, system administrators only.
 app.use('/api/admin', requireAuth, adminRouter)
