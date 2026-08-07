@@ -4,15 +4,25 @@ import rateLimit from 'express-rate-limit'
 import helmet from 'helmet'
 import { pool, testConnection } from './db.js'
 import { env } from './env.js'
+import { startScheduler } from './lib/scheduler.js'
 import { errorHandler } from './middleware/error.js'
 import { attachUser, requireAuth } from './middleware/auth.js'
+import { adminRouter } from './routes/admin.js'
 import { apiariesRouter } from './routes/apiaries.js'
 import { authRouter } from './routes/auth.js'
+import { documentsRouter } from './routes/documents.js'
+import { formsRouter } from './routes/forms.js'
+import { feedingsRouter, healthEventsRouter } from './routes/health.js'
 import { hivesRouter } from './routes/hives.js'
+import { inspectionRouter } from './routes/inspection.js'
 import { inspectionsRouter } from './routes/inspections.js'
 import { meRouter } from './routes/me.js'
+import { notificationsRouter } from './routes/notifications.js'
+import { obligationsRouter } from './routes/obligations.js'
 import { photosRouter } from './routes/photos.js'
 import { queensRouter } from './routes/queens.js'
+import { treatmentsRouter, vmpRouter } from './routes/treatments.js'
+import { varroaRouter } from './routes/varroa.js'
 import { visitsRouter } from './routes/visits.js'
 
 const app = express()
@@ -64,6 +74,22 @@ app.use('/api/inspections', requireAuth, inspectionsRouter)
 app.use('/api/visits', requireAuth, visitsRouter)
 app.use('/api/photos', requireAuth, photosRouter)
 
+// Health, law and paperwork. Note /api/health above is the liveness probe and stays public —
+// the health record lives at /api/health-events.
+app.use('/api/health-events', requireAuth, healthEventsRouter)
+app.use('/api/feedings', requireAuth, feedingsRouter)
+app.use('/api/varroa', requireAuth, varroaRouter)
+app.use('/api/vmp', requireAuth, vmpRouter)
+app.use('/api/treatments', requireAuth, treatmentsRouter)
+app.use('/api/obligations', requireAuth, obligationsRouter)
+app.use('/api/notifications', requireAuth, notificationsRouter)
+app.use('/api/documents', requireAuth, documentsRouter)
+app.use('/api/forms', requireAuth, formsRouter)
+app.use('/api/inspection-mode', requireAuth, inspectionRouter)
+
+// §54 — regulatory parameters, system administrators only.
+app.use('/api/admin', requireAuth, adminRouter)
+
 app.use('/api', (_req: Request, res: Response) => {
   res.status(404).json({ error: 'Ruta ne postoji' })
 })
@@ -81,6 +107,9 @@ async function start() {
   app.listen(env.port, HOST, () => {
     console.log(`[moj-pcelinjak-api] listening on ${HOST}:${env.port} (${env.nodeEnv})`)
   })
+  // §24 — materialises obligations and raises reminders. Guarded by a MySQL advisory lock, so
+  // running several PM2 instances does not multiply the notifications.
+  startScheduler()
 }
 
 // Graceful shutdown — PM2 reload sends SIGINT/SIGTERM
