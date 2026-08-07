@@ -2,6 +2,7 @@ import { Router } from 'express'
 import type { RowDataPacket } from 'mysql2'
 import { z } from 'zod'
 import { pool } from '../db.js'
+import { invalidateSettings, isConfigured } from '../lib/ai.js'
 import { writeAudit } from '../lib/audit.js'
 import { asyncHandler, conflict, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
@@ -812,5 +813,92 @@ adminRouter.delete(
     await pool.query('DELETE FROM subsidy_application_documents WHERE requirement_id = ?', [req.params.id])
     await pool.query('DELETE FROM subsidy_requirements WHERE id = ?', [req.params.id])
     res.status(204).end()
+  }),
+)
+
+// ─────────────────────────────────────────────── §007 — AI layer policy
+//
+// Secrets are not here and never will be: the API keys live in .env on the host. What an
+// administrator gets is policy — the monthly spend cap and the switches — because the moment those
+// need changing is a cost incident, and a cost incident is the worst possible time to need a
+// deploy. Prices stay in lib/ai.ts, where they belong: a price is a fact about a vendor, not a
+// decision this application makes.
+
+adminRouter.get(
+  '/ai-settings',
+  asyncHandler(async (_req, res) => {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT setting_key, value, label, hint, updated_at FROM ai_settings ORDER BY setting_key',
+    )
+    const [totals] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(DISTINCT farm_id) AS farms, COUNT(*) AS calls,
+              COALESCE(SUM(cost_micros), 0) AS micros, COALESCE(SUM(NOT ok), 0) AS failures
+         FROM ai_usage WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')`,
+    )
+    res.json({
+      settings: rows.map((r) => ({
+        key: r.setting_key,
+        value: r.value,
+        label: r.label,
+        hint: r.hint,
+        updatedAt: new Date(r.updated_at as Date).toISOString(),
+      })),
+      // Across every farm, this month. The per-farm figure is at /api/ai/usage; this is the one an
+      // administrator needs when deciding whether the cap is set anywhere near right.
+      month: {
+        farms: Number(totals[0]?.farms ?? 0),
+        calls: Number(totals[0]?.calls ?? 0),
+        failures: Number(totals[0]?.failures ?? 0),
+        eur: Number(totals[0]?.micros ?? 0) / 1_000_000,
+      },
+      configured: isConfigured(),
+      voiceConfigured: Boolean(process.env.GROQ_API_KEY),
+    })
+  }),
+)
+
+const aiSettingSchema = z.object({ value: z.string().trim().min(1).max(200) })
+
+adminRouter.patch(
+  '/ai-settings/:key',
+  asyncHandler(async (req, res) => {
+    const parsed = aiSettingSchema.parse(req.body)
+    let value = parsed.value
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT setting_key, value FROM ai_settings WHERE setting_key = ?',
+      [req.params.key],
+    )
+    const before = rows[0]
+    if (!before) throw notFound('Postavka nije pronađena')
+
+    // The cap is the one value where a typo has a consequence in both directions — "50" instead of
+    // "5" is a tenfold budget, and a negative is a cap nobody can ever be under.
+    if (req.params.key === 'monthly_cap_eur') {
+      // A Croatian administrator types "7,50". Every other number in this application uses a
+      // decimal comma, so rejecting one here would be the field disagreeing with itself — and
+      // Number("7,50") is NaN, which would have failed as "not a number" rather than as a typo.
+      // Stored canonically with a dot; lib/ai.ts parses it with Number().
+      value = value.replace(',', '.')
+      const eur = Number(value)
+      if (!Number.isFinite(eur) || eur < 0 || eur > 10_000) {
+        throw conflict('Limit mora biti broj između 0 i 10000', 'bad_cap')
+      }
+      value = eur.toFixed(2)
+    }
+
+    await pool.query('UPDATE ai_settings SET value = ? WHERE setting_key = ?', [value, req.params.key])
+    // Without this the change would sit behind the one-minute cache in lib/ai.ts, and an
+    // administrator who just pulled the switch during an incident would watch calls keep going.
+    invalidateSettings()
+
+    await writeAudit(req, {
+      userId: req.user?.id ?? null,
+      action: 'ai_setting.update',
+      entityType: 'ai_setting',
+      entityId: req.params.key,
+      before: { value: before.value },
+      after: { value },
+    })
+    res.json({ key: req.params.key, value })
   }),
 )
