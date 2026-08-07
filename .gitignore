@@ -28,9 +28,19 @@ uploads/
 *.sql.gz
 *.dump
 
-# Browser automation artefacts from local verification runs
+# Browser automation artefacts from local verification runs.
 .playwright-mcp/
 test-results/
+
+# Screenshots land in the project root when Playwright is given a relative path, and they show
+# whatever was on screen — an OIB, a home address, apiary names. This repository is public.
+#
+# Anchored with a leading slash so it covers only the root: a blanket *.png would also swallow
+# frontend/public/pwa-*.png and src/assets/hero.png, which are real assets the build needs.
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
 
 # OS metadata
 .DS_Store
