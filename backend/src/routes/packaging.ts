@@ -6,7 +6,9 @@ import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
 import { asyncHandler, conflict, forbidden, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
+import { validateInventoryDraw } from '../lib/invariants.js'
 import { formatHr } from '../lib/obligations.js'
+import { assertFarmReference } from '../lib/ownership.js'
 import { buildReadings, loadLabParameters, overallVerdict } from '../lib/production.js'
 import {
   asDate,
@@ -309,13 +311,16 @@ async function drawMaterials(
   packagedOn: string,
 ): Promise<number> {
   if (itemIds.length === 0) return 0
+  const uniqueIds = [...new Set(itemIds)]
   const [items] = await conn.query<RowDataPacket[]>(
-    'SELECT id FROM inventory_items WHERE farm_id = ? AND deleted_at IS NULL AND id IN (?) FOR UPDATE',
-    [farmId, itemIds],
+    `SELECT id, name, quantity FROM inventory_items
+      WHERE farm_id = ? AND deleted_at IS NULL AND id IN (?) FOR UPDATE`,
+    [farmId, uniqueIds],
   )
-  if (items.length === 0) return 0
+  if (items.length !== uniqueIds.length) throw notFound('Stavka skladišta nije pronađena')
 
   for (const item of items) {
+    validateInventoryDraw(item.name as string, Number(item.quantity), jarCount)
     await conn.query('UPDATE inventory_items SET quantity = quantity - ? WHERE id = ?', [jarCount, item.id])
     await conn.query(
       `INSERT INTO inventory_movements
@@ -359,6 +364,7 @@ packagingRouter.post(
       )
       const batch = batches[0]
       if (!batch) throw notFound('Serija meda nije pronađena')
+      await assertFarmReference(conn, 'product', data.productId, farmId)
 
       const available = Number(batch.available_kg)
       if (kg > available) {
@@ -450,6 +456,7 @@ packagingRouter.patch(
         notes: nullableText(2000),
       })
       .parse(req.body)
+    await assertFarmReference(pool, 'product', data.productId, farmId)
 
     const { isNational, ...fields } = data
     const { names, values } = changedColumns(fields, PACKAGING_COLUMNS)
@@ -483,31 +490,72 @@ packagingRouter.delete(
   asyncHandler(async (req, res) => {
     if (req.farm!.role !== 'owner') throw forbidden('Pakiranje može obrisati samo vlasnik')
     const farmId = req.farm!.id
-    const before = await loadPackaging(farmId, req.params.id)
-
-    // §37 — refused once any jar from the run has been sold. Deleting it returns its honey to the
-    // LOT, and honey that is already in a customer's hands must not reappear there. Same guard, and
-    // the same reason, as refusing to delete a batch that has been packed.
-    const sold = Number(before.sold_count ?? 0)
-    if (sold > 0) {
-      throw conflict(
-        `Iz ovog pakiranja prodano je ${sold} ${sold === 1 ? 'staklenka' : 'staklenki'}. Prvo obrišite te prodaje.`,
-        'jars_sold',
-      )
-    }
-
     const conn = await pool.getConnection()
+    let before: RowDataPacket
     try {
       await conn.beginTransaction()
-      await conn.query('UPDATE packaging_batches SET deleted_at = NOW(), public_token = NULL WHERE id = ?', [
-        before.id,
-      ])
-      // The honey goes back to the LOT. GREATEST guards the arithmetic against ever driving
-      // packed_kg negative if the same run were somehow removed twice.
-      await conn.query('UPDATE honey_batches SET packed_kg = GREATEST(0, packed_kg - ?) WHERE id = ?', [
-        Number(before.total_kg),
-        before.batch_id,
-      ])
+      const [locked] = await conn.query<RowDataPacket[]>(
+        `SELECT * FROM packaging_batches
+          WHERE id = ? AND farm_id = ? AND deleted_at IS NULL FOR UPDATE`,
+        [req.params.id, farmId],
+      )
+      const row = locked[0]
+      if (!row) throw notFound('Pakiranje nije pronađeno')
+
+      const [details] = await conn.query<RowDataPacket[]>(`${PACKAGING_SELECT} WHERE p.id = ? LIMIT 1`, [row.id])
+      before = details[0]!
+
+      const sold = Number(before.sold_count ?? 0)
+      if (sold > 0) {
+        throw conflict(
+          `Iz ovog pakiranja prodano je ${sold} ${sold === 1 ? 'staklenka' : 'staklenki'}. Prvo obrišite te prodaje.`,
+          'jars_sold',
+        )
+      }
+
+      await conn.query(
+        `SELECT id FROM honey_batches WHERE id = ? AND farm_id = ? AND deleted_at IS NULL FOR UPDATE`,
+        [before.batch_id, farmId],
+      )
+      await conn.query(
+        `UPDATE packaging_batches SET deleted_at = NOW(), public_token = NULL
+          WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+        [before.id, farmId],
+      )
+      await conn.query(
+        'UPDATE honey_batches SET packed_kg = packed_kg - ? WHERE id = ? AND farm_id = ?',
+        [Number(before.total_kg), before.batch_id, farmId],
+      )
+
+      const [materials] = await conn.query<RowDataPacket[]>(
+        `SELECT item_id, SUM(delta) AS delta
+           FROM inventory_movements
+          WHERE farm_id = ? AND reference_type = 'packaging_batch' AND reference_id = ?
+            AND reason = 'packaging' AND delta < 0
+          GROUP BY item_id`,
+        [farmId, before.id],
+      )
+      for (const material of materials) {
+        const returned = -Number(material.delta)
+        await conn.query(
+          'UPDATE inventory_items SET quantity = quantity + ? WHERE id = ? AND farm_id = ?',
+          [returned, material.item_id, farmId],
+        )
+        await conn.query(
+          `INSERT INTO inventory_movements
+             (id, farm_id, item_id, moved_on, delta, reason, reference_type, reference_id, note, created_by)
+           VALUES (?, ?, ?, CURDATE(), ?, 'correction', 'packaging_batch', ?, ?, ?)`,
+          [
+            newId(),
+            farmId,
+            material.item_id,
+            returned,
+            before.id,
+            'Povrat nakon brisanja pakiranja',
+            req.user!.id,
+          ],
+        )
+      }
       await conn.commit()
     } catch (err) {
       await conn.rollback()

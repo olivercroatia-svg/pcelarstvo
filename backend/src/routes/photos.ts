@@ -9,6 +9,7 @@ import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
 import { asyncHandler, badRequest, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
+import { resolveUploadRoot } from '../lib/storage.js'
 import { requireFarm } from '../middleware/farm.js'
 
 export const photosRouter = Router()
@@ -37,11 +38,6 @@ const metaSchema = z.object({
   width: z.coerce.number().int().min(1).max(20000).optional(),
   height: z.coerce.number().int().min(1).max(20000).optional(),
 })
-
-/** Files live outside the served tree; every read goes through the authenticated route below. */
-function uploadRoot(): string {
-  return process.env.UPLOAD_DIR ?? path.resolve(process.cwd(), '../uploads')
-}
 
 /** Confirms the target record is this farm's before a photo can be attached to it. */
 async function assertEntityBelongs(farmId: string, entityType: string, entityId: string) {
@@ -76,7 +72,7 @@ photosRouter.post(
       String(now.getMonth() + 1).padStart(2, '0'),
       `${id}.${ext}`,
     )
-    const absolute = path.join(uploadRoot(), relative)
+    const absolute = path.join(resolveUploadRoot(), relative)
 
     await mkdir(path.dirname(absolute), { recursive: true })
     await writeFile(absolute, req.file.buffer)
@@ -162,7 +158,7 @@ photosRouter.get(
 
     res.setHeader('Content-Type', row.mime_type as string)
     res.setHeader('Cache-Control', 'private, max-age=86400')
-    createReadStream(path.join(uploadRoot(), row.file_path as string))
+    createReadStream(path.join(resolveUploadRoot(), row.file_path as string))
       .on('error', () => res.status(404).json({ error: 'Datoteka nije dostupna' }))
       .pipe(res)
   }),

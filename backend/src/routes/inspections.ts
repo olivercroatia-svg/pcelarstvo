@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
 import { asyncHandler, badRequest, notFound } from '../lib/http.js'
+import { assertFarmReference } from '../lib/ownership.js'
 import { requireFarm } from '../middleware/farm.js'
 
 export const inspectionsRouter = Router()
@@ -115,6 +116,7 @@ inspectionsRouter.post(
     const farmId = req.farm!.id
     const data = createSchema.parse(req.body)
     const hive = await loadHiveForWrite(farmId, data.hiveId)
+    await assertFarmReference(pool, 'visit', data.visitId, farmId)
 
     const outcome = await insertInspection(
       farmId,
@@ -164,6 +166,7 @@ inspectionsRouter.post(
   asyncHandler(async (req, res) => {
     const farmId = req.farm!.id
     const data = batchSchema.parse(req.body)
+    await assertFarmReference(pool, 'visit', data.visitId, farmId)
     if (data.ids.length !== data.hiveIds.length) {
       throw badRequest('Broj identifikatora ne odgovara broju košnica')
     }

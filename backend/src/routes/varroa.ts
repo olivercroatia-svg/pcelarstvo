@@ -137,10 +137,10 @@ varroaRouter.post(
 
     if (data.hiveId) {
       const [hives] = await pool.query<RowDataPacket[]>(
-        'SELECT id FROM hives WHERE id = ? AND farm_id = ? AND deleted_at IS NULL LIMIT 1',
-        [data.hiveId, farmId],
+        'SELECT id FROM hives WHERE id = ? AND farm_id = ? AND apiary_id = ? AND deleted_at IS NULL LIMIT 1',
+        [data.hiveId, farmId, data.apiaryId],
       )
-      if (hives.length === 0) throw notFound('Košnica nije pronađena')
+      if (hives.length === 0) throw notFound('Košnica nije pronađena u odabranom pčelinjaku')
     }
 
     let duplicate = false

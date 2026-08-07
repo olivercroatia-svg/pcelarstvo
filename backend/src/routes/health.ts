@@ -5,6 +5,7 @@ import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
 import { asyncHandler, forbidden, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
+import { assertFarmReference } from '../lib/ownership.js'
 import { asDate, asNumber, changedColumns, nullableDate, nullableInt, nullableText, requiredDate } from '../lib/schema.js'
 import { requireFarm } from '../middleware/farm.js'
 
@@ -44,7 +45,7 @@ const EVENT_SELECT = `
   SELECT e.*, a.name AS apiary_name, h.code AS hive_code,
          CONCAT(u.first_name, ' ', u.last_name) AS by_name
     FROM health_events e
-    LEFT JOIN apiaries a ON a.id = e.apiary_id
+    LEFT JOIN apiaries a ON a.id = e.apiary_id AND a.farm_id = e.farm_id
     LEFT JOIN hives h ON h.id = e.hive_id
     LEFT JOIN users u ON u.id = e.created_by
 `
@@ -139,15 +140,16 @@ async function resolveScope(farmId: string, apiaryId?: string | null, hiveId?: s
     )
     const row = rows[0]
     if (!row) throw notFound('Košnica nije pronađena')
-    return { hiveId: row.id as string, apiaryId: (row.apiary_id as string | null) ?? apiaryId ?? null }
+    const own = row.apiary_id as string | null
+    if (own) return { hiveId: row.id as string, apiaryId: own }
+    // A hive in transit between apiaries has apiary_id NULL by design (002_apiaries.sql), so in
+    // that window the caller's is the only apiary there is — and it is checked like every other
+    // reference rather than taken on trust. The foreign key proves the apiary exists, not whose
+    // it is, so an unchecked id here wrote another farm's apiary into this farm's records.
+    await assertFarmReference(pool, 'apiary', apiaryId, farmId)
+    return { hiveId: row.id as string, apiaryId: apiaryId ?? null }
   }
-  if (apiaryId) {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      'SELECT id FROM apiaries WHERE id = ? AND farm_id = ? AND deleted_at IS NULL LIMIT 1',
-      [apiaryId, farmId],
-    )
-    if (rows.length === 0) throw notFound('Pčelinjak nije pronađen')
-  }
+  await assertFarmReference(pool, 'apiary', apiaryId, farmId)
   return { hiveId: null, apiaryId: apiaryId ?? null }
 }
 
@@ -219,7 +221,17 @@ healthEventsRouter.patch(
       .object({ ...eventFields, kind: eventFields.kind.optional(), observedOn: eventFields.observedOn.optional(), title: eventFields.title.optional() })
       .parse(req.body)
 
-    const { names, values } = changedColumns(data, COLUMNS)
+    let fields = data
+    if (data.apiaryId !== undefined || data.hiveId !== undefined) {
+      const scope = await resolveScope(
+        farmId,
+        data.apiaryId === undefined ? (before.apiary_id as string | null) : data.apiaryId,
+        data.hiveId === undefined ? (before.hive_id as string | null) : data.hiveId,
+      )
+      fields = { ...data, apiaryId: scope.apiaryId, hiveId: scope.hiveId }
+    }
+
+    const { names, values } = changedColumns(fields, COLUMNS)
     if (names.length > 0) {
       await pool.query(
         `UPDATE health_events SET ${names.map((n) => `${n} = ?`).join(', ')} WHERE id = ? AND farm_id = ?`,
@@ -292,7 +304,7 @@ const FEEDING_SELECT = `
   SELECT f.*, a.name AS apiary_name, h.code AS hive_code,
          CONCAT(u.first_name, ' ', u.last_name) AS by_name
     FROM feedings f
-    JOIN apiaries a ON a.id = f.apiary_id
+    LEFT JOIN apiaries a ON a.id = f.apiary_id AND a.farm_id = f.farm_id
     LEFT JOIN hives h ON h.id = f.hive_id
     LEFT JOIN users u ON u.id = f.created_by
 `
@@ -339,7 +351,7 @@ feedingsRouter.post(
   asyncHandler(async (req, res) => {
     const farmId = req.farm!.id
     const data = feedingSchema.parse(req.body)
-    await resolveScope(farmId, data.apiaryId, data.hiveId)
+    const scope = await resolveScope(farmId, data.apiaryId, data.hiveId)
 
     let duplicate = false
     try {
@@ -350,8 +362,8 @@ feedingsRouter.post(
         [
           data.id,
           farmId,
-          data.apiaryId,
-          data.hiveId ?? null,
+          scope.apiaryId,
+          scope.hiveId,
           data.fedOn,
           data.feedType,
           data.amountKg ?? null,
@@ -373,7 +385,7 @@ feedingsRouter.post(
         action: 'feeding.create',
         entityType: 'feeding',
         entityId: data.id,
-        after: { apiaryId: data.apiaryId, fedOn: data.fedOn, feedType: data.feedType, amountKg: data.amountKg },
+        after: { apiaryId: scope.apiaryId, fedOn: data.fedOn, feedType: data.feedType, amountKg: data.amountKg },
       })
     }
 

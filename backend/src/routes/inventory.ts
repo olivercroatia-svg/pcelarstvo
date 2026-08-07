@@ -3,7 +3,7 @@ import type { RowDataPacket } from 'mysql2/promise'
 import { z } from 'zod'
 import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
-import { asyncHandler, badRequest, forbidden, notFound } from '../lib/http.js'
+import { asyncHandler, badRequest, conflict, forbidden, notFound } from '../lib/http.js'
 import { jarStock } from '../lib/commerce.js'
 import { newId } from '../lib/ids.js'
 import { honeyStock } from '../lib/production.js'
@@ -232,8 +232,6 @@ inventoryRouter.post(
   '/items/:id/movements',
   asyncHandler(async (req, res) => {
     const farmId = req.farm!.id
-    const item = await loadItem(farmId, req.params.id)
-
     const data = z
       .object({
         delta: z.coerce.number().min(-10000000).max(10000000).optional(),
@@ -248,16 +246,31 @@ inventoryRouter.post(
       throw badRequest('Unesite promjenu ili novo stanje')
     }
 
-    const delta = data.delta ?? Number((data.quantity! - Number(item.quantity)).toFixed(2))
-    if (delta === 0) {
-      res.json({ item: mapItem(item), movement: null })
-      return
-    }
-
     const movedOn = data.movedOn ?? new Date().toISOString().slice(0, 10)
     const conn = await pool.getConnection()
+    let delta = 0
+    let item: RowDataPacket
     try {
       await conn.beginTransaction()
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT * FROM inventory_items
+          WHERE id = ? AND farm_id = ? AND deleted_at IS NULL FOR UPDATE`,
+        [req.params.id, farmId],
+      )
+      item = rows[0]!
+      if (!item) throw notFound('Stavka nije pronađena')
+
+      delta = data.delta ?? Number((data.quantity! - Number(item.quantity)).toFixed(2))
+      const nextQuantity = Number(item.quantity) + delta
+      if (nextQuantity < 0) {
+        throw conflict(`Stanje ne može pasti ispod nule (trenutno ${Number(item.quantity)})`, 'insufficient_stock')
+      }
+      if (delta === 0) {
+        await conn.commit()
+        res.json({ item: mapItem(item), movement: null })
+        return
+      }
+
       await conn.query('UPDATE inventory_items SET quantity = quantity + ? WHERE id = ? AND farm_id = ?', [
         delta,
         item.id,

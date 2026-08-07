@@ -4,6 +4,7 @@ import path from 'node:path'
 import bcrypt from 'bcryptjs'
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise'
 import { pool } from '../db.js'
+import { resolveUploadRoot } from './storage.js'
 
 /**
  * §56 — the two rights that need code rather than a policy page: take everything with you, and be
@@ -263,10 +264,6 @@ export interface EraseSummary {
   filesFailed: number
 }
 
-function uploadRoot(): string {
-  return process.env.UPLOAD_DIR ?? path.resolve(process.cwd(), '../uploads')
-}
-
 /**
  * Farms this user owns alone. A farm with a second owner keeps running — one person leaving a
  * shared business does not erase the business's register.
@@ -425,7 +422,7 @@ export async function eraseAccount(userId: string): Promise<EraseSummary> {
   // After the commit, never inside it. A file system error must not roll back an erasure the user
   // has already been told is irreversible; the paths are logged instead so an operator can finish
   // the job by hand.
-  const root = uploadRoot()
+  const root = resolveUploadRoot()
   let filesRemoved = 0
   let filesFailed = 0
   for (const relative of files) {

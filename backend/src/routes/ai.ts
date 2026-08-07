@@ -3,7 +3,9 @@ import multer from 'multer'
 import type { RowDataPacket } from 'mysql2'
 import { z } from 'zod'
 import { pool } from '../db.js'
+import { audioDurationSeconds } from '../lib/audio-duration.js'
 import {
+  guard,
   isConfigured,
   settings,
   spend,
@@ -65,7 +67,12 @@ const AUDIO_TYPES = new Set([
 ])
 
 function context(req: Parameters<typeof requireFarm>[0], feature: AiContext['feature']): AiContext {
-  return { farmId: req.farm!.id, userId: req.user?.id ?? null, feature }
+  return {
+    farmId: req.farm!.id,
+    userId: req.user?.id ?? null,
+    feature,
+    canViewCost: req.farm!.role === 'owner',
+  }
 }
 
 function image(req: { file?: Express.Multer.File }): { base64: string; mediaType: ImageMediaType } {
@@ -121,6 +128,12 @@ aiRouter.post(
 const voiceSchema = z.object({
   /** Set when the beekeeper scanned a hive QR before speaking, which resolves most ambiguity. */
   hiveCode: z.string().trim().max(40).nullish(),
+  /**
+   * What the browser measured while recording. Optional: it is a fallback for the containers the
+   * local parser cannot read, not a requirement, and an installed PWA still serving an older
+   * bundle must not be answered with a schema error it cannot act on.
+   */
+  durationSeconds: z.coerce.number().min(0).optional(),
 })
 
 aiRouter.post(
@@ -133,8 +146,20 @@ aiRouter.post(
     if (!AUDIO_TYPES.has(mime)) {
       throw badRequest('Format snimke nije podržan', 'bad_type')
     }
-    const { hiveCode } = voiceSchema.parse(req.body)
+    const { hiveCode, durationSeconds } = voiceSchema.parse(req.body)
     const ctx = context(req, 'voice')
+    // A cheap gate that spares the beekeeper an upload and us a bill — not a verdict on the file.
+    // The parser reads the containers it knows and returns null for the rest, and a fragmented MP4
+    // (what MediaRecorder emits on iOS, because the header is written before recording ends)
+    // carries no duration at all. Refusing those would tell a beekeeper to record again in the only
+    // format their phone produces. When nothing can be measured the request goes through and
+    // MAX_AUDIO_BYTES bounds the damage; the provider's own duration below is the authority.
+    const preflight = audioDurationSeconds(req.file.buffer, mime) ?? durationSeconds ?? null
+    if (preflight !== null && preflight > MAX_AUDIO_SECONDS) {
+      throw badRequest(`Snimka je duža od ${MAX_AUDIO_SECONDS} sekundi`, 'too_long')
+    }
+    // Transcription is itself billable, so the policy gate must run before contacting Groq.
+    await guard(ctx)
 
     const transcript = await transcribe(req.file.buffer, mime, req.file.originalname || 'snimka')
     await recordTranscription(ctx, transcript.seconds)

@@ -10,6 +10,7 @@ import { writeAudit } from '../lib/audit.js'
 import { asyncHandler, badRequest, forbidden, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
 import { asDate, asNumber, changedColumns, nullableDate, nullableText } from '../lib/schema.js'
+import { resolveUploadRoot } from '../lib/storage.js'
 import { requireFarm } from '../middleware/farm.js'
 
 /** §22 — the document archive. */
@@ -24,6 +25,7 @@ export const DOCUMENT_CATEGORIES = [
   'food_safety',
   'laboratory',
   'subsidy',
+  'receipt',
   'other',
 ] as const
 
@@ -40,10 +42,6 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 })
-
-function uploadRoot(): string {
-  return process.env.UPLOAD_DIR ?? path.resolve(process.cwd(), '../uploads')
-}
 
 function mapDocument(row: RowDataPacket) {
   const expiresOn = asDate(row.expires_on)
@@ -152,7 +150,7 @@ documentsRouter.post(
 
       const now = new Date()
       relative = path.join(farmId, 'documents', String(now.getFullYear()), `${id}.${ext}`)
-      absolute = path.join(uploadRoot(), relative)
+      absolute = path.join(resolveUploadRoot(), relative)
       await mkdir(path.dirname(absolute), { recursive: true })
       await writeFile(absolute, req.file.buffer)
     }
@@ -251,7 +249,7 @@ documentsRouter.get(
       'Content-Disposition',
       `inline; filename*=UTF-8''${encodeURIComponent((row.file_name as string) ?? 'dokument')}`,
     )
-    createReadStream(path.join(uploadRoot(), row.file_path as string))
+    createReadStream(path.join(resolveUploadRoot(), row.file_path as string))
       .on('error', () => res.status(404).json({ error: 'Datoteka nije dostupna' }))
       .pipe(res)
   }),

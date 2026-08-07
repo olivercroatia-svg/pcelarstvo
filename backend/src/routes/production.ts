@@ -3,9 +3,11 @@ import type { PoolConnection, RowDataPacket } from 'mysql2/promise'
 import { z } from 'zod'
 import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
-import { asyncHandler, badRequest, conflict, forbidden, notFound } from '../lib/http.js'
+import { asyncHandler, conflict, forbidden, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
+import { validateBatchTotal } from '../lib/invariants.js'
 import { nextLotCode } from '../lib/lot.js'
+import { assertFarmReference } from '../lib/ownership.js'
 import { withdrawalConflicts } from '../lib/production.js'
 import {
   asDate,
@@ -392,6 +394,7 @@ harvestsRouter.patch(
         containers: z.array(containerSchema).max(50).optional(),
       })
       .parse(req.body)
+    await assertFarmReference(pool, 'apiary', data.apiaryId, farmId)
 
     const { hiveIds, containers, ...fields } = data
     const { names, values } = changedColumns(fields, HARVEST_COLUMNS)
@@ -447,28 +450,36 @@ harvestsRouter.delete(
   asyncHandler(async (req, res) => {
     if (req.farm!.role !== 'owner') throw forbidden('Vrcanje može obrisati samo vlasnik')
     const farmId = req.farm!.id
-    const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT h.id, b.id AS batch_id, b.lot_code, b.packed_kg
-         FROM harvests h
-         LEFT JOIN honey_batches b ON b.harvest_id = h.id AND b.deleted_at IS NULL
-        WHERE h.id = ? AND h.farm_id = ? AND h.deleted_at IS NULL LIMIT 1`,
-      [req.params.id, farmId],
-    )
-    const row = rows[0]
-    if (!row) throw notFound('Vrcanje nije pronađeno')
-
-    // Once honey has left the LOT in jars, deleting the extraction would leave those jars
-    // descending from nothing and break §30 for every one of them.
-    if (row.packed_kg !== null && Number(row.packed_kg) > 0) {
-      throw conflict(`Iz serije ${row.lot_code} već je pakiran med, pa se vrcanje ne može obrisati`, 'packed')
-    }
-
     const conn = await pool.getConnection()
+    let row: RowDataPacket
     try {
       await conn.beginTransaction()
-      await conn.query('UPDATE harvests SET deleted_at = NOW() WHERE id = ?', [row.id])
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT h.id, b.id AS batch_id, b.lot_code, b.packed_kg, b.sold_bulk_kg
+           FROM harvests h
+           LEFT JOIN honey_batches b ON b.harvest_id = h.id AND b.deleted_at IS NULL
+          WHERE h.id = ? AND h.farm_id = ? AND h.deleted_at IS NULL
+          FOR UPDATE`,
+        [req.params.id, farmId],
+      )
+      row = rows[0]!
+      if (!row) throw notFound('Vrcanje nije pronađeno')
+
+      const packedKg = Number(row.packed_kg ?? 0)
+      const soldBulkKg = Number(row.sold_bulk_kg ?? 0)
+      if (packedKg > 0 || soldBulkKg > 0) {
+        throw conflict(
+          `Iz serije ${row.lot_code} već je evidentiran izlaz meda (${packedKg + soldBulkKg} kg), pa se vrcanje ne može obrisati`,
+          'honey_committed',
+        )
+      }
+
+      await conn.query('UPDATE harvests SET deleted_at = NOW() WHERE id = ? AND farm_id = ?', [row.id, farmId])
       if (row.batch_id) {
-        await conn.query('UPDATE honey_batches SET deleted_at = NOW() WHERE id = ?', [row.batch_id])
+        await conn.query('UPDATE honey_batches SET deleted_at = NOW() WHERE id = ? AND farm_id = ?', [
+          row.batch_id,
+          farmId,
+        ])
       }
       await conn.commit()
     } catch (err) {
@@ -609,22 +620,33 @@ batchesRouter.patch(
       })
       .parse(req.body)
 
-    // available_kg is generated as total − packed, so lowering the total below what has already
-    // been jarred would produce a negative warehouse figure. Refused rather than clamped: the
-    // beekeeper needs to know which of the two numbers is actually wrong.
-    if (data.totalKg !== undefined && data.totalKg < Number(before.packed_kg)) {
-      throw badRequest(
-        `Ukupna količina ne može biti manja od već pakiranih ${Number(before.packed_kg)} kg`,
-        'below_packed',
-      )
-    }
-
     const { names, values } = changedColumns(data, BATCH_COLUMNS)
     if (names.length > 0) {
-      await pool.query(
-        `UPDATE honey_batches SET ${names.map((n) => `${n} = ?`).join(', ')} WHERE id = ? AND farm_id = ?`,
-        [...values, before.id, farmId],
-      )
+      const conn = await pool.getConnection()
+      try {
+        await conn.beginTransaction()
+        const [rows] = await conn.query<RowDataPacket[]>(
+          `SELECT packed_kg, sold_bulk_kg FROM honey_batches
+            WHERE id = ? AND farm_id = ? AND deleted_at IS NULL FOR UPDATE`,
+          [before.id, farmId],
+        )
+        const locked = rows[0]
+        if (!locked) throw notFound('Serija meda nije pronađena')
+        if (data.totalKg !== undefined) {
+          validateBatchTotal(data.totalKg, Number(locked.packed_kg), Number(locked.sold_bulk_kg))
+        }
+        await conn.query(
+          `UPDATE honey_batches SET ${names.map((n) => `${n} = ?`).join(', ')}
+            WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+          [...values, before.id, farmId],
+        )
+        await conn.commit()
+      } catch (err) {
+        await conn.rollback()
+        throw err
+      } finally {
+        conn.release()
+      }
     }
 
     const after = await loadBatch(farmId, before.id as string)

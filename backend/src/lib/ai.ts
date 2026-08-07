@@ -67,6 +67,7 @@ export interface AiContext {
   farmId: string
   userId: string | null
   feature: AiFeature
+  canViewCost?: boolean
 }
 
 // ── client ──────────────────────────────────────────────────────────────────
@@ -180,9 +181,12 @@ export async function guard(ctx: AiContext): Promise<void> {
 
   const { allowed, usedMicros, capMicros } = await spend(ctx.farmId)
   if (!allowed) {
+    const detail = ctx.canViewCost
+      ? ` (${(usedMicros / MICROS).toFixed(2)} € od ${(capMicros / MICROS).toFixed(2)} €)`
+      : ''
     throw new ApiError(
       429,
-      `Mjesečni limit AI funkcija je dosegnut (${(usedMicros / MICROS).toFixed(2)} € od ${(capMicros / MICROS).toFixed(2)} €). ` +
+      `Mjesečni limit AI funkcija je dosegnut${detail}. ` +
         'Ostatak aplikacije radi normalno, a limit se obnavlja prvog u mjesecu.',
       'ai_cap_reached',
     )

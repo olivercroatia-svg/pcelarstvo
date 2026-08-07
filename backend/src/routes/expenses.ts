@@ -6,6 +6,7 @@ import { writeAudit } from '../lib/audit.js'
 import { EXPENSE_CATEGORIES, EXPENSE_LABELS } from '../lib/commerce.js'
 import { asyncHandler, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
+import { assertFarmReference } from '../lib/ownership.js'
 import { asDate, asNumber, changedColumns, nullableDecimal, nullableText, requiredDate } from '../lib/schema.js'
 import { requireFarm, requireOwner } from '../middleware/farm.js'
 
@@ -139,6 +140,8 @@ expensesRouter.post(
   asyncHandler(async (req, res) => {
     const farmId = req.farm!.id
     const data = z.object(expenseFields).parse(req.body)
+    await assertFarmReference(pool, 'apiary', data.apiaryId, farmId)
+    await assertFarmReference(pool, 'document', data.documentId, farmId)
     const id = newId()
     const { names, values } = changedColumns(data, EXPENSE_COLUMNS)
 
@@ -191,6 +194,8 @@ expensesRouter.patch(
         amount: expenseFields.amount.optional(),
       })
       .parse(req.body)
+    await assertFarmReference(pool, 'apiary', data.apiaryId, farmId)
+    await assertFarmReference(pool, 'document', data.documentId, farmId)
 
     const { names, values } = changedColumns(data, EXPENSE_COLUMNS)
     if (names.length > 0) {

@@ -7,6 +7,7 @@ import { SALE_APIARY, SALE_CHAIN_JOIN, SALE_HONEY_KG, sellableRuns } from '../li
 import { asyncHandler, badRequest, conflict, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
 import { isValidOib } from '../lib/oib.js'
+import { assertFarmReference } from '../lib/ownership.js'
 import { asDate, asNumber, changedColumns, nullableText, requiredDate } from '../lib/schema.js'
 import { requireFarm, requireOwner } from '../middleware/farm.js'
 
@@ -512,6 +513,7 @@ salesRouter.post(
     const conn = await pool.getConnection()
     try {
       await conn.beginTransaction()
+      await assertFarmReference(conn, 'customer', header.customerId, farmId)
       await conn.query(
         `INSERT INTO sales (id, farm_id, created_by, ${names.join(', ')})
          VALUES (?, ?, ?, ${names.map(() => '?').join(', ')})`,
@@ -604,6 +606,7 @@ salesRouter.patch(
         paid: z.boolean().optional(),
       })
       .parse(req.body)
+    await assertFarmReference(pool, 'customer', data.customerId, farmId)
 
     const { names, values } = changedColumns(data, SALE_COLUMNS)
     if (names.length > 0) {
@@ -637,28 +640,46 @@ salesRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {
     const farmId = req.farm!.id
-    const before = await loadSale(farmId, req.params.id)
-
     const conn = await pool.getConnection()
+    let saleId = ''
+    let total = 0
+    let itemCount = 0
     try {
       await conn.beginTransaction()
-      for (const item of before.items) {
-        if (item.kind === 'jars' && item.packagingId) {
+      const [sales] = await conn.query<RowDataPacket[]>(
+        `SELECT id FROM sales
+          WHERE id = ? AND farm_id = ? AND deleted_at IS NULL FOR UPDATE`,
+        [req.params.id, farmId],
+      )
+      const sale = sales[0]
+      if (!sale) throw notFound('Prodaja nije pronađena')
+      saleId = sale.id as string
+
+      const [items] = await conn.query<RowDataPacket[]>(
+        `SELECT kind, packaging_id, batch_id, quantity, line_total
+           FROM sale_items WHERE sale_id = ? ORDER BY sort_order`,
+        [saleId],
+      )
+      itemCount = items.length
+      total = Number(items.reduce((sum, item) => sum + Number(item.line_total), 0).toFixed(2))
+
+      for (const item of items) {
+        if (item.kind === 'jars' && item.packaging_id) {
           await conn.query(
-            'UPDATE packaging_batches SET sold_count = GREATEST(sold_count - ?, 0) WHERE id = ? AND farm_id = ?',
-            [item.quantity, item.packagingId, farmId],
+            'UPDATE packaging_batches SET sold_count = sold_count - ? WHERE id = ? AND farm_id = ?',
+            [Number(item.quantity), item.packaging_id, farmId],
           )
-        } else if (item.kind === 'bulk' && item.batchId) {
+        } else if (item.kind === 'bulk' && item.batch_id) {
           await conn.query(
-            'UPDATE honey_batches SET sold_bulk_kg = GREATEST(sold_bulk_kg - ?, 0) WHERE id = ? AND farm_id = ?',
-            [item.quantity, item.batchId, farmId],
+            'UPDATE honey_batches SET sold_bulk_kg = sold_bulk_kg - ? WHERE id = ? AND farm_id = ?',
+            [Number(item.quantity), item.batch_id, farmId],
           )
         }
       }
-      await conn.query('UPDATE sales SET deleted_at = NOW() WHERE id = ? AND farm_id = ?', [
-        before.sale.id,
-        farmId,
-      ])
+      await conn.query(
+        'UPDATE sales SET deleted_at = NOW() WHERE id = ? AND farm_id = ? AND deleted_at IS NULL',
+        [saleId, farmId],
+      )
       await conn.commit()
     } catch (err) {
       await conn.rollback()
@@ -672,8 +693,8 @@ salesRouter.delete(
       farmId,
       action: 'sale.delete',
       entityType: 'sale',
-      entityId: before.sale.id,
-      before: { total: before.sale.total, items: before.items.length },
+      entityId: saleId,
+      before: { total, items: itemCount },
     })
     res.status(204).end()
   }),

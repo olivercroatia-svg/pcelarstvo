@@ -6,6 +6,7 @@ import { writeAudit } from '../lib/audit.js'
 import { PASTURE_SUGGESTIONS, pastureYields } from '../lib/commerce.js'
 import { asyncHandler, badRequest, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
+import { assertFarmReference } from '../lib/ownership.js'
 import { counted } from '../lib/plural.js'
 import {
   asDate,
@@ -187,6 +188,7 @@ pasturesRouter.post(
   asyncHandler(async (req, res) => {
     const farmId = req.farm!.id
     const data = z.object(pastureFields).parse(req.body)
+    await assertFarmReference(pool, 'apiary', data.apiaryId, farmId)
     const id = newId()
     const { names, values } = changedColumns(data, PASTURE_COLUMNS)
 
@@ -227,6 +229,7 @@ pasturesRouter.patch(
         seasonYear: pastureFields.seasonYear.optional(),
       })
       .parse(req.body)
+    await assertFarmReference(pool, 'apiary', data.apiaryId, farmId)
 
     const { names, values } = changedColumns(data, PASTURE_COLUMNS)
     if (names.length > 0) {
@@ -521,6 +524,7 @@ relocationsRouter.patch(
         status: z.enum(['planned', 'done', 'cancelled']).optional(),
       })
       .parse(req.body)
+    await assertFarmReference(pool, 'apiary', data.apiaryId, farmId)
 
     const { transportArranged, status, ...fields } = data
     const { names, values } = changedColumns(fields, RELOCATION_COLUMNS)
@@ -613,6 +617,11 @@ relocationsRouter.post(
     const farmId = req.farm!.id
     const data = z.object(permissionFields).parse(req.body)
     if (!data.apiaryId && !data.migrationId) throw badRequest('Odaberite pčelinjak ili selidbu')
+    await Promise.all([
+      assertFarmReference(pool, 'apiary', data.apiaryId, farmId),
+      assertFarmReference(pool, 'migration', data.migrationId, farmId),
+      assertFarmReference(pool, 'document', data.documentId, farmId),
+    ])
 
     const id = newId()
     const { names, values } = changedColumns(data, PERMISSION_COLUMNS)

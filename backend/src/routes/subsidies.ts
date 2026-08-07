@@ -205,22 +205,45 @@ subsidiesRouter.post(
     )
     if (programs.length === 0) throw notFound('Natječaj nije pronađen')
 
+    // Read first only to describe what happened; the upsert below is what decides it.
     const [existing] = await pool.query<RowDataPacket[]>(
-      'SELECT id FROM subsidy_applications WHERE farm_id = ? AND program_id = ? AND deleted_at IS NULL',
+      'SELECT id, deleted_at FROM subsidy_applications WHERE farm_id = ? AND program_id = ? LIMIT 1',
       [farmId, req.params.programId],
     )
-    if (existing.length > 0) {
-      res.json({ applicationId: existing[0]!.id as string, created: false })
-      return
-    }
+    const previous = existing[0]
+    const created = !previous || Boolean(previous.deleted_at)
 
-    const id = newId()
+    // The UNIQUE is what enforces one application per farm per programme, so let it: a
+    // SELECT-then-branch is not atomic here, because a unique lookup that matches nothing takes
+    // only a gap lock and gap locks do not exclude one another. Two tabs would both find nothing,
+    // both insert, and one would get a duplicate-key or deadlock error the beekeeper reads as
+    // "greška na poslužitelju" for having tapped twice.
+    //
+    // Reviving a soft-deleted application returns it to 'preparing' and keeps everything already
+    // entered — the amounts, the notes, the attached documents. A §54 file is assembled over
+    // weeks, and a delete the owner can undo must not be the way that work disappears. `status` is
+    // assigned before `deleted_at` on purpose: the assignments run left to right, so it still sees
+    // the stored value and leaves a live application's status alone.
     await pool.query(
       `INSERT INTO subsidy_applications (id, farm_id, program_id, status, created_by)
        VALUES (?, ?, ?, 'preparing', ?)
-       ON DUPLICATE KEY UPDATE deleted_at = NULL, status = 'preparing'`,
-      [id, farmId, req.params.programId, req.user!.id],
+       ON DUPLICATE KEY UPDATE
+         status = IF(deleted_at IS NULL, status, 'preparing'),
+         deleted_at = NULL`,
+      [(previous?.id as string) ?? newId(), farmId, req.params.programId, req.user!.id],
     )
+
+    // Never the id we generated: a request that lost the race updated the winner's row, not ours.
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id FROM subsidy_applications WHERE farm_id = ? AND program_id = ? LIMIT 1',
+      [farmId, req.params.programId],
+    )
+    const id = rows[0]!.id as string
+
+    if (!created) {
+      res.json({ applicationId: id, created: false })
+      return
+    }
     await writeAudit(req, {
       userId: req.user!.id,
       farmId,

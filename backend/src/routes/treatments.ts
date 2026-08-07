@@ -5,6 +5,8 @@ import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
 import { asyncHandler, conflict, forbidden, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
+import { validateTreatmentDates } from '../lib/invariants.js'
+import { assertFarmReference } from '../lib/ownership.js'
 import { asDate, asNumber, changedColumns, nullableDate, nullableInt, nullableText, requiredDate } from '../lib/schema.js'
 import { requireFarm } from '../middleware/farm.js'
 
@@ -313,11 +315,8 @@ treatmentsRouter.post(
     const farmId = req.farm!.id
     const data = createSchema.parse(req.body)
 
-    const [apiaries] = await pool.query<RowDataPacket[]>(
-      'SELECT id FROM apiaries WHERE id = ? AND farm_id = ? AND deleted_at IS NULL LIMIT 1',
-      [data.apiaryId, farmId],
-    )
-    if (apiaries.length === 0) throw notFound('Pčelinjak nije pronađen')
+    await assertFarmReference(pool, 'apiary', data.apiaryId, farmId)
+    await assertFarmReference(pool, 'vmpProduct', data.vmpProductId, farmId)
 
     const id = newId()
     const { hiveIds, ...fields } = data
@@ -381,6 +380,12 @@ treatmentsRouter.patch(
         hiveIds: z.array(z.string().trim().min(1)).max(1000).optional(),
       })
       .parse(req.body)
+    await assertFarmReference(pool, 'apiary', data.apiaryId, farmId)
+    await assertFarmReference(pool, 'vmpProduct', data.vmpProductId, farmId)
+    validateTreatmentDates(
+      data.startedOn ?? asDate(before.started_on)!,
+      data.endedOn === undefined ? asDate(before.ended_on) : data.endedOn,
+    )
 
     const { hiveIds, ...fields } = data
     const { names, values } = changedColumns(fields, TREATMENT_COLUMNS)
@@ -388,6 +393,15 @@ treatmentsRouter.patch(
     const conn = await pool.getConnection()
     try {
       await conn.beginTransaction()
+      const [lockedRows] = await conn.query<RowDataPacket[]>(
+        `SELECT locked_at FROM veterinary_treatments
+          WHERE id = ? AND farm_id = ? AND deleted_at IS NULL FOR UPDATE`,
+        [before.id, farmId],
+      )
+      if (lockedRows.length === 0) throw notFound('Tretman nije pronađen')
+      if (lockedRows[0]!.locked_at) {
+        throw conflict('Evidencija je zaključana i više se ne može mijenjati', 'locked')
+      }
       if (names.length > 0) {
         await conn.query(
           `UPDATE veterinary_treatments SET ${names.map((n) => `${n} = ?`).join(', ')}
@@ -432,12 +446,27 @@ treatmentsRouter.post(
     if (req.farm!.role !== 'owner') throw forbidden('Evidenciju može zaključati samo vlasnik')
     const farmId = req.farm!.id
     const before = await loadTreatment(farmId, req.params.id)
-    if (before.locked_at) throw conflict('Evidencija je već zaključana', 'locked')
-
-    await pool.query('UPDATE veterinary_treatments SET locked_at = NOW() WHERE id = ? AND farm_id = ?', [
-      before.id,
-      farmId,
-    ])
+    const conn = await pool.getConnection()
+    try {
+      await conn.beginTransaction()
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT locked_at FROM veterinary_treatments
+          WHERE id = ? AND farm_id = ? AND deleted_at IS NULL FOR UPDATE`,
+        [before.id, farmId],
+      )
+      if (rows.length === 0) throw notFound('Tretman nije pronađen')
+      if (rows[0]!.locked_at) throw conflict('Evidencija je već zaključana', 'locked')
+      await conn.query('UPDATE veterinary_treatments SET locked_at = NOW() WHERE id = ? AND farm_id = ?', [
+        before.id,
+        farmId,
+      ])
+      await conn.commit()
+    } catch (err) {
+      await conn.rollback()
+      throw err
+    } finally {
+      conn.release()
+    }
     await writeAudit(req, {
       userId: req.user!.id,
       farmId,

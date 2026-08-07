@@ -1,10 +1,11 @@
 import { Router } from 'express'
-import type { RowDataPacket } from 'mysql2/promise'
+import type { PoolConnection, RowDataPacket } from 'mysql2/promise'
 import { z } from 'zod'
 import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
 import { asyncHandler, forbidden, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
+import { assertFarmReference } from '../lib/ownership.js'
 import {
   buildReadings,
   loadLabParameters,
@@ -170,17 +171,49 @@ const COLUMNS: Record<string, string> = {
  */
 const valuesSchema = z.record(z.string().trim().max(40), z.coerce.number().min(-1000).max(1000000))
 
-async function replaceValues(testId: string, values: Record<string, number>): Promise<void> {
+/**
+ * The codes are read by the caller, before it opens its transaction, and never from in here.
+ * `loadLabParameters` goes to the pool, and a pool query issued while a transaction holds one of
+ * the ten connections queues behind all ten: ten concurrent lab writes would each wait for an
+ * eleventh connection that cannot exist, and nothing in the process — not this route, not any
+ * other — would ever answer again.
+ */
+async function knownParameterCodes(): Promise<Set<string>> {
   const parameters = await loadLabParameters(true)
-  const known = new Set(parameters.map((p) => p.code))
+  return new Set(parameters.map((p) => p.code))
+}
+
+async function writeValues(
+  conn: PoolConnection,
+  testId: string,
+  values: Record<string, number>,
+  known: Set<string>,
+): Promise<void> {
   const rows = Object.entries(values)
     .filter(([code]) => known.has(code))
     .map(([code, value]) => [testId, code, value])
+  if (rows.length === 0) return
+  await conn.query('INSERT INTO laboratory_values (test_id, parameter_code, value) VALUES ?', [rows])
+}
 
-  await pool.query('DELETE FROM laboratory_values WHERE test_id = ?', [testId])
-  if (rows.length > 0) {
-    await pool.query('INSERT INTO laboratory_values (test_id, parameter_code, value) VALUES ?', [rows])
-  }
+/**
+ * Only for an edit, and deliberately not reused on create.
+ *
+ * The primary key is (test_id, parameter_code), so deleting by a test_id that has no rows still
+ * takes a gap lock on the clustered index — and gap locks do not exclude one another while the
+ * insert intent that follows does. Several reports filed at once would each hold a gap the others
+ * needed, and InnoDB would break the tie by killing all but one with a deadlock the beekeeper
+ * reads as "greška na poslužitelju". A freshly generated test id cannot have values yet, so on
+ * create there is nothing to delete and no gap to lock.
+ */
+async function replaceValues(
+  conn: PoolConnection,
+  testId: string,
+  values: Record<string, number>,
+  known: Set<string>,
+): Promise<void> {
+  await conn.query('DELETE FROM laboratory_values WHERE test_id = ?', [testId])
+  await writeValues(conn, testId, values, known)
 }
 
 labRouter.post(
@@ -194,17 +227,30 @@ labRouter.post(
       [data.batchId, farmId],
     )
     if (batches.length === 0) throw notFound('Serija meda nije pronađena')
+    await assertFarmReference(pool, 'document', data.documentId, farmId)
 
     const { values, ...fields } = data
     const id = newId()
     const { names, values: columnValues } = changedColumns(fields, COLUMNS)
 
-    await pool.query(
-      `INSERT INTO laboratory_tests (id, farm_id, created_by, ${names.join(', ')})
-       VALUES (?, ?, ?, ${names.map(() => '?').join(', ')})`,
-      [id, farmId, req.user!.id, ...columnValues],
-    )
-    await replaceValues(id, values)
+    const known = await knownParameterCodes()
+
+    const conn = await pool.getConnection()
+    try {
+      await conn.beginTransaction()
+      await conn.query(
+        `INSERT INTO laboratory_tests (id, farm_id, created_by, ${names.join(', ')})
+         VALUES (?, ?, ?, ${names.map(() => '?').join(', ')})`,
+        [id, farmId, req.user!.id, ...columnValues],
+      )
+      await writeValues(conn, id, values, known)
+      await conn.commit()
+    } catch (err) {
+      await conn.rollback()
+      throw err
+    } finally {
+      conn.release()
+    }
 
     const row = await loadTest(farmId, id)
     const readings = await readingsFor([id])
@@ -232,16 +278,35 @@ labRouter.patch(
     const data = z
       .object({ ...testFields, batchId: testFields.batchId.optional(), values: valuesSchema.optional() })
       .parse(req.body)
+    await assertFarmReference(pool, 'batch', data.batchId, farmId)
+    await assertFarmReference(pool, 'document', data.documentId, farmId)
 
     const { values, ...fields } = data
     const { names, values: columnValues } = changedColumns(fields, COLUMNS)
-    if (names.length > 0) {
-      await pool.query(
-        `UPDATE laboratory_tests SET ${names.map((n) => `${n} = ?`).join(', ')} WHERE id = ? AND farm_id = ?`,
-        [...columnValues, before.id, farmId],
+    const known = values ? await knownParameterCodes() : new Set<string>()
+
+    const conn = await pool.getConnection()
+    try {
+      await conn.beginTransaction()
+      const [lockedRows] = await conn.query<RowDataPacket[]>(
+        'SELECT id FROM laboratory_tests WHERE id = ? AND farm_id = ? AND deleted_at IS NULL FOR UPDATE',
+        [before.id, farmId],
       )
+      if (lockedRows.length === 0) throw notFound('Laboratorijski nalaz nije pronađen')
+      if (names.length > 0) {
+        await conn.query(
+          `UPDATE laboratory_tests SET ${names.map((n) => `${n} = ?`).join(', ')} WHERE id = ? AND farm_id = ?`,
+          [...columnValues, before.id, farmId],
+        )
+      }
+      if (values) await replaceValues(conn, before.id as string, values, known)
+      await conn.commit()
+    } catch (err) {
+      await conn.rollback()
+      throw err
+    } finally {
+      conn.release()
     }
-    if (values) await replaceValues(before.id as string, values)
 
     const after = await loadTest(farmId, before.id as string)
     const readings = await readingsFor([after.id as string])

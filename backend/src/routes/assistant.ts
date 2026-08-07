@@ -427,7 +427,12 @@ assistantRouter.post(
     const history = existing ? await messages(existing.id) : []
     history.push({ role: 'user', content: question })
 
-    const ctx: AiContext = { farmId, userId, feature: 'assistant' }
+    const ctx: AiContext = {
+      farmId,
+      userId,
+      feature: 'assistant',
+      canViewCost: req.farm!.role === 'owner',
+    }
     // Throws before anything is written. Everything below this line only runs on a real answer.
     const answer = await converse(ctx, {
       system: SYSTEM,

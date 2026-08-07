@@ -5,6 +5,7 @@ import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
 import { asyncHandler, badRequest, conflict, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
+import { assertFarmReference } from '../lib/ownership.js'
 import { newQrToken } from '../lib/tokens.js'
 import { requireFarm, requireOwner } from '../middleware/farm.js'
 
@@ -501,6 +502,7 @@ hivesRouter.post(
     if (hive.colony_id) throw badRequest('Košnica već ima aktivnu zajednicu')
 
     const data = startColonySchema.parse(req.body)
+    await assertFarmReference(pool, 'queen', data.queenId, farmId)
     const id = newId()
     await pool.query(
       `INSERT INTO colonies (id, farm_id, hive_id, queen_id, started_on, source)
