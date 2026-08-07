@@ -239,6 +239,81 @@ async function sweepFarm(farmId: string, today: string): Promise<void> {
       dedupeKey: `permit_expiry:${row.id}:${expiresOn}:${daysLeft}`,
     })
   }
+
+  // ── §53 "🔵 Planirana selidba za 5 dana" ───────────────────────────────
+  //
+  // The ladder is short on purpose. A move is arranged days ahead, not months, and the useful
+  // reminder is the one that arrives while there is still time to chase a consent.
+  const MOVE_STEPS = [14, 5, 1, 0]
+  const [moves] = await pool.query<RowDataPacket[]>(
+    `SELECT m.id, m.to_location, m.planned_on, a.name AS apiary_name,
+            (SELECT COUNT(*) FROM apiary_permissions p
+              WHERE p.migration_id = m.id AND p.deleted_at IS NULL
+                AND (p.valid_until IS NULL OR p.valid_until >= ?)) AS consents
+       FROM apiary_migrations m JOIN apiaries a ON a.id = m.apiary_id
+      WHERE m.farm_id = ? AND m.deleted_at IS NULL AND m.status = 'planned'
+        AND m.planned_on BETWEEN ? AND DATE_ADD(?, INTERVAL 14 DAY)`,
+    [today, farmId, today, today],
+  )
+  for (const row of moves) {
+    const plannedOn = asDate(row.planned_on)!
+    const daysLeft = daysBetween(today, plannedOn)
+    if (!MOVE_STEPS.includes(daysLeft)) continue
+
+    const missingConsent = Number(row.consents) === 0
+    await notify({
+      farmId,
+      kind: 'relocation_due',
+      // A move without a consent is the one worth interrupting someone for; §21 puts that warning
+      // on the checklist and this is the same fact reaching them before they load the truck.
+      severity: missingConsent ? 'warning' : 'info',
+      title:
+        daysLeft === 0
+          ? `Danas je selidba — ${row.to_location}`
+          : `Selidba za ${counted(daysLeft, 'dan', 'dana', 'dana')} — ${row.to_location}`,
+      body: missingConsent
+        ? `${row.apiary_name} · suglasnost za smještaj nije unesena`
+        : `${row.apiary_name} · ${formatHr(plannedOn)}`,
+      link: `/selidbe/${row.id}`,
+      entityType: 'apiary_migration',
+      entityId: row.id as string,
+      dedupeKey: `relocation:${row.id}:${plannedOn}:${daysLeft}`,
+    })
+  }
+
+  // ── §53 "🟣 Zaliha staklenki ispod minimuma" ───────────────────────────
+  //
+  // Only for items the beekeeper set a minimum on. min_quantity IS NULL means "do not watch this
+  // one", and honouring that is what keeps the notification centre worth reading.
+  const [lowStock] = await pool.query<RowDataPacket[]>(
+    `SELECT id, name, quantity, unit, min_quantity FROM inventory_items
+      WHERE farm_id = ? AND deleted_at IS NULL
+        AND min_quantity IS NOT NULL AND quantity <= min_quantity`,
+    [farmId],
+  )
+  for (const row of lowStock) {
+    await notify({
+      farmId,
+      kind: 'stock_low',
+      severity: 'caution',
+      title: `Zaliha ispod minimuma — ${row.name}`,
+      body: `Na skladištu ${Number(row.quantity)} ${row.unit}, minimum je ${Number(row.min_quantity)}.`,
+      link: `/skladiste/${row.id}`,
+      entityType: 'inventory_item',
+      entityId: row.id as string,
+      // Weekly, not daily: the shelf does not refill itself overnight, and a daily repeat of the
+      // same line is what makes people stop opening the centre at all.
+      dedupeKey: `stock_low:${row.id}:${weekKey(today)}`,
+    })
+  }
+}
+
+/** ISO-ish week bucket for dedupe keys — "2026-W32". Good enough to fire a reminder once a week. */
+function weekKey(today: string): string {
+  const date = new Date(`${today}T00:00:00Z`)
+  const start = Date.UTC(date.getUTCFullYear(), 0, 1)
+  const week = Math.floor((date.getTime() - start) / (7 * 86_400_000)) + 1
+  return `${date.getUTCFullYear()}-W${week}`
 }
 
 export async function runReminderSweep(): Promise<{ farms: number }> {
