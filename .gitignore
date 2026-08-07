@@ -22,6 +22,16 @@ pnpm-debug.log*
 pgdata/
 mysqldata/
 
+# User uploads — NEVER commit. Holds scanned rješenja, laboratory findings and hive photos, which
+# carry an OIB, a home address and apiary surroundings (§56). This repository is public.
+uploads/
+*.sql.gz
+*.dump
+
+# Browser automation artefacts from local verification runs
+.playwright-mcp/
+test-results/
+
 # OS metadata
 .DS_Store
 Thumbs.db
