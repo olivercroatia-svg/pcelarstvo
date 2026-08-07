@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
 import { asyncHandler, badRequest, forbidden, notFound } from '../lib/http.js'
+import { jarStock } from '../lib/commerce.js'
 import { newId } from '../lib/ids.js'
 import { honeyStock } from '../lib/production.js'
 import { asDate, asNumber, changedColumns, nullableDate, nullableDecimal, nullableText } from '../lib/schema.js'
@@ -52,8 +53,19 @@ inventoryRouter.get(
     )
     const items = rows.map(mapItem)
 
+    // Two piles of the same honey, both derived, neither editable. `honey` is what is still in the
+    // barrels; `jars` is what has been filled and not yet sold. Etapa 3 showed only the first, so
+    // packing 54 kg made it look like 54 kg had left the building — which is the moment a
+    // beekeeper stops trusting the warehouse figure.
+    const honey = await honeyStock(farmId)
+    const jars = await jarStock(farmId)
+
     res.json({
-      honey: await honeyStock(farmId),
+      honey,
+      jars,
+      honeyTotalKg: Number(
+        (honey.reduce((s, h) => s + h.availableKg, 0) + jars.reduce((s, j) => s + j.kg, 0)).toFixed(2),
+      ),
       items,
       lowCount: items.filter((i) => i.low).length,
       expiredCount: items.filter((i) => i.expired).length,

@@ -201,7 +201,13 @@ function mapPackaging(row: RowDataPacket) {
     packagedOn: asDate(row.packaged_on),
     jarSizeG: Number(row.jar_size_g),
     jarCount: Number(row.jar_count),
+    // Added with §37: a run is a stock of jars, not only a record that they were filled. Maintained
+    // by routes/sales.ts; remainingCount is generated, so it is the one definition of "how many
+    // are left" that every screen reads.
+    soldCount: Number(row.sold_count ?? 0),
+    remainingCount: Number(row.remaining_count ?? row.jar_count),
     totalKg: Number(row.total_kg),
+    remainingKg: Number(((Number(row.remaining_count ?? row.jar_count) * Number(row.jar_size_g)) / 1000).toFixed(3)),
     bestBefore: asDate(row.best_before),
     isNational: Boolean(row.is_national),
     serialFrom: (row.serial_from as string | null) ?? null,
@@ -478,6 +484,17 @@ packagingRouter.delete(
     if (req.farm!.role !== 'owner') throw forbidden('Pakiranje može obrisati samo vlasnik')
     const farmId = req.farm!.id
     const before = await loadPackaging(farmId, req.params.id)
+
+    // §37 — refused once any jar from the run has been sold. Deleting it returns its honey to the
+    // LOT, and honey that is already in a customer's hands must not reappear there. Same guard, and
+    // the same reason, as refusing to delete a batch that has been packed.
+    const sold = Number(before.sold_count ?? 0)
+    if (sold > 0) {
+      throw conflict(
+        `Iz ovog pakiranja prodano je ${sold} ${sold === 1 ? 'staklenka' : 'staklenki'}. Prvo obrišite te prodaje.`,
+        'jars_sold',
+      )
+    }
 
     const conn = await pool.getConnection()
     try {
