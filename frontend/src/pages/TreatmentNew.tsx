@@ -215,7 +215,7 @@ export function TreatmentNewPage() {
 
           {withdrawalUntil && (
             <p className="rounded-lg bg-caution/10 p-2.5 text-sm text-caution">
-              Med se ne smije vrcati do <strong>{formatDate(withdrawalUntil)}</strong>.
+              Med se ne smije vrcati do <strong>{formatDate(withdrawalUntil)}</strong>
             </p>
           )}
           {withdrawalDays !== '' && !endedOn && (

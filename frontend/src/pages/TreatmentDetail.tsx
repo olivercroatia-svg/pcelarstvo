@@ -71,8 +71,9 @@ export function TreatmentDetailPage() {
       {t.withdrawalActive && (
         <Card className="border-caution/50">
           <CardContent className="py-3 text-sm">
+            {/* No trailing full stop: formatDate already ends in one. */}
             Med iz ovog pčelinjaka <strong>ne smije se vrcati</strong> do{' '}
-            {formatDate(t.withdrawalUntil)}.
+            {formatDate(t.withdrawalUntil)}
           </CardContent>
         </Card>
       )}
