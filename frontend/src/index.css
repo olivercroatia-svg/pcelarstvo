@@ -1,0 +1,176 @@
+@import 'tailwindcss';
+
+/* Dark mode is class-driven (.dark on <html>) rather than media-driven, because the field UI has
+   a manual night toggle — a beekeeper opening hives at dusk should not depend on the OS setting. */
+@custom-variant dark (&:is(.dark *));
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Honey palette (§2) — warm, modern, professional. Amber and beeswax rather
+   than the green-and-grey of agricultural software.
+
+   Contrast notes (WCAG AA, checked against the surface each pair sits on):
+     light  primary #b45309 on #fdfaf3 → 5.6:1   (text and icons pass)
+     light  muted-fg #6b5c47 on #fdfaf3 → 6.1:1
+     dark   primary #fbbf24 on #1a1512 → 10.4:1
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --radius: 0.75rem;
+
+  --background: #fdfaf3; /* beeswax paper */
+  --foreground: #2a2118; /* warm near-black */
+
+  --card: #ffffff;
+  --card-foreground: #2a2118;
+  --popover: #ffffff;
+  --popover-foreground: #2a2118;
+
+  --primary: #b45309; /* deep honey */
+  --primary-foreground: #fffbeb;
+
+  --secondary: #f5ecd9; /* light comb */
+  --secondary-foreground: #78350f;
+
+  --muted: #f4efe4;
+  --muted-foreground: #6b5c47;
+
+  --accent: #fdf0d5;
+  --accent-foreground: #78350f;
+
+  --destructive: #b91c1c;
+  --destructive-foreground: #fffbeb;
+
+  --border: #e7dcc7;
+  --input: #e7dcc7;
+  --ring: #d97706;
+
+  /* Status ramp — the scenario speaks in 🔴🟠🟡🟢 throughout (§6, §23, §53), so those states
+     are tokens rather than ad-hoc colours picked per screen. */
+  --status-critical: #b91c1c;
+  --status-warning: #c2410c;
+  --status-caution: #a16207;
+  --status-ok: #15803d;
+  --status-info: #1d4ed8;
+}
+
+.dark {
+  --background: #1a1512;
+  --foreground: #f3ead9;
+
+  --card: #241d18;
+  --card-foreground: #f3ead9;
+  --popover: #241d18;
+  --popover-foreground: #f3ead9;
+
+  --primary: #fbbf24; /* brighter honey — #b45309 goes muddy on a dark ground */
+  --primary-foreground: #1a1512;
+
+  --secondary: #33291f;
+  --secondary-foreground: #fde9c4;
+
+  --muted: #2b2219;
+  --muted-foreground: #b3a189;
+
+  --accent: #3a2d1e;
+  --accent-foreground: #fde9c4;
+
+  --destructive: #f87171;
+  --destructive-foreground: #1a1512;
+
+  --border: #3a2f24;
+  --input: #3a2f24;
+  --ring: #f59e0b;
+
+  --status-critical: #f87171;
+  --status-warning: #fb923c;
+  --status-caution: #fbbf24;
+  --status-ok: #4ade80;
+  --status-info: #60a5fa;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-critical: var(--status-critical);
+  --color-warning: var(--status-warning);
+  --color-caution: var(--status-caution);
+  --color-ok: var(--status-ok);
+  --color-info: var(--status-info);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* System stack on purpose: no webfont request to block first paint in a field with one bar of
+     signal, and on iOS it renders as SF Pro, which is exactly the modern look §2 asks for. */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-numeric: ui-rounded, -apple-system, 'Segoe UI', system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    /* Stops iOS Safari from zooming the page when a text input is focused. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    /* Respect the notch and home indicator — the bottom nav sits on top of the safe area. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Themed focus ring everywhere; never the browser default. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 25%, transparent);
+  }
+}
+
+@layer utilities {
+  /* The honeycomb motif from §2, used as a faint texture behind hero areas. Deliberately very
+     low contrast — a watermark, not a pattern. */
+  /* Seamless: tile is 2·halfWidth × 3·R for a pointy-top hexagon (R = 16), with cells drawn at all
+     four corners plus the half-offset centre so every hexagon crossing an edge continues on the
+     next tile. Getting this wrong shows up as diagonal seams across the background. */
+  .bg-honeycomb {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='27.7128' height='48' viewBox='0 0 27.7128 48'%3E%3Cg fill='none' stroke='%23b45309' stroke-opacity='.12' stroke-width='1'%3E%3Cpath d='M0 -16L13.856 -8L13.856 8L0 16L-13.856 8L-13.856 -8Z'/%3E%3Cpath d='M27.713 -16L41.569 -8L41.569 8L27.713 16L13.856 8L13.856 -8Z'/%3E%3Cpath d='M0 32L13.856 40L13.856 56L0 64L-13.856 56L-13.856 40Z'/%3E%3Cpath d='M27.713 32L41.569 40L41.569 56L27.713 64L13.856 56L13.856 40Z'/%3E%3Cpath d='M13.856 8L27.713 16L27.713 32L13.856 40L0 32L0 16Z'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 27.7128px 48px;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
