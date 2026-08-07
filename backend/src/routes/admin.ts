@@ -7,7 +7,7 @@ import { asyncHandler, conflict, notFound } from '../lib/http.js'
 import { newId } from '../lib/ids.js'
 import { mapRule } from '../lib/obligations.js'
 import { runReminderSweep } from '../lib/scheduler.js'
-import { nullableDate, nullableInt, nullableText } from '../lib/schema.js'
+import { changedColumns, nullableDate, nullableInt, nullableText } from '../lib/schema.js'
 import { requireAdmin } from '../middleware/auth.js'
 
 /**
@@ -251,5 +251,218 @@ adminRouter.post(
   '/reminders/run',
   asyncHandler(async (_req, res) => {
     res.json(await runReminderSweep())
+  }),
+)
+
+// ═══════════════════════════════════════════════ §31 — laboratory criteria
+//
+// Same reasoning as the obligations above, applied to the Honey Directive: the thresholds a
+// laboratory result is judged against are a table, not a constant. §31's own wording — "Parametri
+// odgovaraju **unesenim** kriterijima" — is what this router edits.
+
+function mapParameter(row: RowDataPacket) {
+  return {
+    id: row.id as string,
+    code: row.code as string,
+    name: row.name as string,
+    unit: (row.unit as string | null) ?? null,
+    minValue: row.min_value === null ? null : Number(row.min_value),
+    maxValue: row.max_value === null ? null : Number(row.max_value),
+    note: (row.note as string | null) ?? null,
+    decimals: Number(row.decimals),
+    sortOrder: Number(row.sort_order),
+    active: Boolean(row.active),
+  }
+}
+
+adminRouter.get(
+  '/lab-parameters',
+  asyncHandler(async (_req, res) => {
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM lab_parameters ORDER BY sort_order, name')
+    // How many recorded readings would be re-judged by an edit — the number an administrator
+    // wants in front of them before moving a limit.
+    const [usage] = await pool.query<RowDataPacket[]>(
+      'SELECT parameter_code, COUNT(*) AS readings FROM laboratory_values GROUP BY parameter_code',
+    )
+    const counts = new Map(usage.map((r) => [r.parameter_code as string, Number(r.readings)]))
+    res.json({
+      parameters: rows.map((row) => ({
+        ...mapParameter(row),
+        readingCount: counts.get(row.code as string) ?? 0,
+      })),
+    })
+  }),
+)
+
+const LIMIT = z.coerce
+  .number()
+  .min(-1000)
+  .max(1000000)
+  .nullish()
+  .transform((v) => (v === undefined ? undefined : (v ?? null)))
+
+const parameterFields = {
+  code: z
+    .string()
+    .trim()
+    .min(2)
+    .max(40)
+    .regex(/^[a-z0-9_]+$/, 'Dozvoljena su mala slova, brojke i podvlaka'),
+  name: z.string().trim().min(2, 'Unesite naziv parametra').max(120),
+  unit: nullableText(30),
+  minValue: LIMIT,
+  maxValue: LIMIT,
+  note: nullableText(255),
+  decimals: z.coerce.number().int().min(0).max(4).optional(),
+  sortOrder: z.coerce.number().int().min(0).max(9999).optional(),
+  active: z.boolean().optional(),
+}
+
+const PARAMETER_COLUMNS: Record<string, string> = {
+  code: 'code',
+  name: 'name',
+  unit: 'unit',
+  minValue: 'min_value',
+  maxValue: 'max_value',
+  note: 'note',
+  decimals: 'decimals',
+  sortOrder: 'sort_order',
+  active: 'active',
+}
+
+/** A minimum above a maximum would mark every possible reading as a failure. */
+function assertRange(min: number | null | undefined, max: number | null | undefined): void {
+  if (min !== null && min !== undefined && max !== null && max !== undefined && min > max) {
+    throw conflict('Najmanja vrijednost ne može biti veća od najveće', 'range')
+  }
+}
+
+adminRouter.post(
+  '/lab-parameters',
+  asyncHandler(async (req, res) => {
+    const data = z.object(parameterFields).parse(req.body)
+    assertRange(data.minValue, data.maxValue)
+
+    const [clash] = await pool.query<RowDataPacket[]>('SELECT id FROM lab_parameters WHERE code = ? LIMIT 1', [
+      data.code,
+    ])
+    if (clash.length > 0) throw conflict('Parametar s ovom šifrom već postoji', 'duplicate_code')
+
+    const id = newId()
+    const { names, values } = changedColumns(data, PARAMETER_COLUMNS)
+    await pool.query(
+      `INSERT INTO lab_parameters (id, ${names.join(', ')}) VALUES (?, ${names.map(() => '?').join(', ')})`,
+      [id, ...values],
+    )
+    await writeAudit(req, {
+      userId: req.user!.id,
+      action: 'lab_parameter.create',
+      entityType: 'lab_parameter',
+      entityId: id,
+      after: data,
+    })
+
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM lab_parameters WHERE id = ?', [id])
+    res.status(201).json({ parameter: mapParameter(rows[0]!) })
+  }),
+)
+
+adminRouter.patch(
+  '/lab-parameters/:id',
+  asyncHandler(async (req, res) => {
+    const [existing] = await pool.query<RowDataPacket[]>('SELECT * FROM lab_parameters WHERE id = ? LIMIT 1', [
+      req.params.id,
+    ])
+    const before = existing[0]
+    if (!before) throw notFound('Parametar nije pronađen')
+
+    const data = z
+      .object({ ...parameterFields, code: parameterFields.code.optional(), name: parameterFields.name.optional() })
+      .parse(req.body)
+
+    // Compared against the stored values, not only against each other: sending just a new minimum
+    // must still be checked against the maximum already on the row.
+    assertRange(
+      data.minValue === undefined ? (before.min_value === null ? null : Number(before.min_value)) : data.minValue,
+      data.maxValue === undefined ? (before.max_value === null ? null : Number(before.max_value)) : data.maxValue,
+    )
+
+    const { names, values } = changedColumns(data, PARAMETER_COLUMNS)
+    if (names.length > 0) {
+      await pool.query(
+        `UPDATE lab_parameters SET ${names.map((n) => `${n} = ?`).join(', ')} WHERE id = ?`,
+        [...values, before.id],
+      )
+    }
+
+    // Existing laboratory_values are untouched. Verdicts are computed at read time, so every
+    // recorded finding is re-judged against the new limit the next time it is opened — which is
+    // the intended behaviour here and the opposite of the obligations rule above, because a
+    // laboratory card is informational and an issued obligation is a record of what was filed.
+    const [after] = await pool.query<RowDataPacket[]>('SELECT * FROM lab_parameters WHERE id = ?', [before.id])
+    await writeAudit(req, {
+      userId: req.user!.id,
+      action: 'lab_parameter.update',
+      entityType: 'lab_parameter',
+      entityId: before.id as string,
+      before: mapParameter(before),
+      after: mapParameter(after[0]!),
+    })
+    res.json({ parameter: mapParameter(after[0]!) })
+  }),
+)
+
+// ═══════════════════════════════════════════════ §34 — declaration text blocks
+//
+// Edit only. The set of blocks is fixed by what the declaration renders, so an administrator who
+// could add a ninth block would be adding text nothing prints.
+
+adminRouter.get(
+  '/declaration-texts',
+  asyncHandler(async (_req, res) => {
+    const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM declaration_texts ORDER BY sort_order')
+    res.json({
+      texts: rows.map((row) => ({
+        id: row.id as string,
+        code: row.code as string,
+        label: row.label as string,
+        body: (row.body as string | null) ?? '',
+        hint: (row.hint as string | null) ?? null,
+      })),
+    })
+  }),
+)
+
+adminRouter.patch(
+  '/declaration-texts/:id',
+  asyncHandler(async (req, res) => {
+    const [existing] = await pool.query<RowDataPacket[]>('SELECT * FROM declaration_texts WHERE id = ? LIMIT 1', [
+      req.params.id,
+    ])
+    const before = existing[0]
+    if (!before) throw notFound('Tekst nije pronađen')
+
+    const data = z.object({ body: z.string().trim().max(4000) }).parse(req.body)
+    await pool.query('UPDATE declaration_texts SET body = ? WHERE id = ?', [data.body || null, before.id])
+
+    await writeAudit(req, {
+      userId: req.user!.id,
+      action: 'declaration_text.update',
+      entityType: 'declaration_text',
+      entityId: before.id as string,
+      before: { body: before.body },
+      after: { body: data.body },
+    })
+
+    const [after] = await pool.query<RowDataPacket[]>('SELECT * FROM declaration_texts WHERE id = ?', [before.id])
+    res.json({
+      text: {
+        id: after[0]!.id as string,
+        code: after[0]!.code as string,
+        label: after[0]!.label as string,
+        body: (after[0]!.body as string | null) ?? '',
+        hint: (after[0]!.hint as string | null) ?? null,
+      },
+    })
   }),
 )
