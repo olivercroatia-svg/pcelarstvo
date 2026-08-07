@@ -67,8 +67,22 @@ async function gatherFacts(farmId: string) {
        (SELECT COUNT(*) FROM laboratory_tests WHERE farm_id = ? AND deleted_at IS NULL) AS lab_tests,
        (SELECT COUNT(*) FROM packaging_batches WHERE farm_id = ? AND deleted_at IS NULL) AS packaging_runs,
        (SELECT COUNT(*) FROM inventory_items
-         WHERE farm_id = ? AND deleted_at IS NULL AND expires_on IS NOT NULL AND expires_on < CURDATE()) AS expired_stock`,
-    Array.from({ length: 19 }, () => farmId),
+         WHERE farm_id = ? AND deleted_at IS NULL AND expires_on IS NOT NULL AND expires_on < CURDATE()) AS expired_stock,
+
+       -- §21. Consents and relocations, which an inspector does ask about. Note what is NOT here:
+       -- sales, customers, expenses and subsidy amounts all exist as of Etapa 4 and none of them
+       -- appear in this file. §26 keeps financial data off the screen handed to an official, and
+       -- that is enforced by these SELECT lists rather than by the interface.
+       (SELECT COUNT(*) FROM apiary_permissions
+         WHERE farm_id = ? AND deleted_at IS NULL
+           AND valid_until IS NOT NULL AND valid_until < CURDATE()) AS expired_consents,
+       (SELECT COUNT(*) FROM apiary_migrations m
+         WHERE m.farm_id = ? AND m.deleted_at IS NULL AND m.status = 'planned'
+           AND NOT EXISTS (SELECT 1 FROM apiary_permissions p
+                            WHERE p.migration_id = m.id AND p.deleted_at IS NULL
+                              AND (p.valid_until IS NULL OR p.valid_until >= CURDATE()))) AS moves_without_consent,
+       (SELECT COUNT(*) FROM apiary_migrations WHERE farm_id = ? AND deleted_at IS NULL) AS relocations`,
+    Array.from({ length: 22 }, () => farmId),
   )
   return rows[0]!
 }
@@ -271,6 +285,35 @@ inspectionRouter.get(
       },
     ]
 
+    // §21 — only for a farm that actually moves hives. A stationary beekeeper handed an empty
+    // "Selidbe" heading looks like they forgot to fill something in.
+    if (Number(facts.expired_consents) > 0 || Number(facts.relocations) > 0) {
+      groups.push({
+        key: 'relocations',
+        title: 'Paše i selidbe',
+        items: [
+          {
+            label: 'Suglasnosti za smještaj važeće',
+            ok: Number(facts.expired_consents) === 0,
+            detail:
+              Number(facts.expired_consents) === 0
+                ? 'uredno'
+                : `${counted(Number(facts.expired_consents), 'istekla suglasnost', 'istekle suglasnosti', 'isteklih suglasnosti')}`,
+            link: '/selidbe',
+          },
+          {
+            label: 'Planirane selidbe imaju suglasnost',
+            ok: Number(facts.moves_without_consent) === 0,
+            detail:
+              Number(facts.moves_without_consent) === 0
+                ? 'uredno'
+                : `${counted(Number(facts.moves_without_consent), 'selidba', 'selidbe', 'selidbi')} bez suglasnosti`,
+            link: '/selidbe',
+          },
+        ],
+      })
+    }
+
     res.json({
       farm: {
         name: (farm.name as string | null) ?? `${farm.first_name} ${farm.last_name}`.trim(),
@@ -468,12 +511,34 @@ inspectionRouter.get(
             : `${counted(Number(facts.expired_stock), 'stavka je istekla', 'stavke su istekle', 'stavki je isteklo')}`,
         link: '/skladiste',
       },
+      {
+        label: 'Suglasnosti za smještaj važeće',
+        ok: Number(facts.expired_consents) === 0,
+        detail:
+          Number(facts.expired_consents) === 0
+            ? 'uredno'
+            : `${counted(Number(facts.expired_consents), 'suglasnost je istekla', 'suglasnosti su istekle', 'suglasnosti je isteklo')}`,
+        link: '/selidbe',
+      },
+      {
+        label: 'Planirane selidbe imaju suglasnost',
+        ok: Number(facts.moves_without_consent) === 0,
+        detail:
+          Number(facts.moves_without_consent) === 0
+            ? 'uredno'
+            : `${counted(Number(facts.moves_without_consent), 'selidba', 'selidbe', 'selidbi')} bez suglasnosti`,
+        link: '/selidbe',
+      },
     ]
 
     // What genuinely does not exist yet, rather than what has not been built into this list.
     // Counted neither as a pass nor as a failure, so the percentage stays honest.
+    //
+    // "Evidencija prodaje i kupaca" used to sit here and has been removed rather than ticked. The
+    // module exists as of Etapa 4 — but this file does not read it and is not going to, because
+    // §26 keeps financial data off the inspection screen. Leaving it listed as pending would have
+    // promised a check that is deliberately never coming.
     const pending: CheckItem[] = [
-      { label: 'Evidencija prodaje i kupaca', ok: false, pending: true, detail: 'modul prodaje stiže u sljedećoj etapi' },
       { label: 'Evidencija higijene objekta', ok: false, pending: true, detail: 'modul stiže u sljedećoj etapi' },
     ]
 
