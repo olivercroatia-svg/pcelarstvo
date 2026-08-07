@@ -6,6 +6,7 @@ import { asyncHandler, notFound } from '../lib/http.js'
 import { buildReadings, loadLabParameters, overallVerdict, withdrawalConflicts } from '../lib/production.js'
 import { asDate, asNumber } from '../lib/schema.js'
 import { requireFarm } from '../middleware/farm.js'
+import { salesForBatch } from './sales.js'
 
 /**
  * §30 the traceability chain, and §35 the public page a customer reaches by scanning a jar.
@@ -182,9 +183,10 @@ traceabilityRouter.get(
         published: Boolean(p.public_token),
         publicToken: (p.public_token as string | null) ?? null,
       })),
-      // §30's last link. Sales arrive with §37 in Etapa 4; the field is present and empty rather
-      // than absent so the screen does not have to guess whether it is missing or unbuilt.
-      sales: [],
+      // §30's last link — who actually bought the honey. Empty for a worker rather than absent:
+      // §4 keeps customers and prices away from them, and the screen renders the same chain with
+      // one section fewer instead of a different shape.
+      sales: req.farm!.role === 'owner' ? await salesForBatch(batch.id as string) : [],
     })
   }),
 )
