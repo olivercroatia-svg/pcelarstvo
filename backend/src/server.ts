@@ -11,6 +11,8 @@ import { adminRouter } from './routes/admin.js'
 import { apiariesRouter } from './routes/apiaries.js'
 import { authRouter } from './routes/auth.js'
 import { documentsRouter } from './routes/documents.js'
+import { analyticsRouter, economicsRouter } from './routes/economics.js'
+import { expensesRouter } from './routes/expenses.js'
 import { formsRouter } from './routes/forms.js'
 import { feedingsRouter, healthEventsRouter } from './routes/health.js'
 import { hivesRouter } from './routes/hives.js'
@@ -25,10 +27,16 @@ import { packagingRouter, productsRouter } from './routes/packaging.js'
 import { photosRouter } from './routes/photos.js'
 import { batchesRouter, harvestsRouter } from './routes/production.js'
 import { queensRouter } from './routes/queens.js'
+import { reportRouter } from './routes/report.js'
+import { customersRouter, salesRouter } from './routes/sales.js'
+import { searchRouter, timelineRouter } from './routes/search.js'
+import { pasturesRouter, relocationsRouter, seasonRouter } from './routes/season.js'
+import { subsidiesRouter } from './routes/subsidies.js'
 import { publicRouter, traceabilityRouter } from './routes/traceability.js'
 import { treatmentsRouter, vmpRouter } from './routes/treatments.js'
 import { varroaRouter } from './routes/varroa.js'
 import { visitsRouter } from './routes/visits.js'
+import { weatherRouter } from './routes/weather.js'
 
 const app = express()
 const HOST = '127.0.0.1' // CRITICAL: never 0.0.0.0 in production — Nginx is the only entry
@@ -100,6 +108,30 @@ app.use('/api/products', requireAuth, productsRouter)
 app.use('/api/packaging', requireAuth, packagingRouter)
 app.use('/api/inventory', requireAuth, inventoryRouter)
 app.use('/api/traceability', requireAuth, traceabilityRouter)
+
+// Sezona i teren (§19–§21, §47). Not financial, so a worker reaches these — whoever drives the
+// hives to the sunflower needs the relocation checklist more than the owner does.
+app.use('/api/season', requireAuth, seasonRouter)
+app.use('/api/pastures', requireAuth, pasturesRouter)
+app.use('/api/relocations', requireAuth, relocationsRouter)
+app.use('/api/weather', requireAuth, weatherRouter)
+
+// Reading across every module (§48, §49, §52). Each applies the §4 filter internally: the
+// financial slices are omitted from the response for a worker rather than hidden on the screen.
+app.use('/api/search', requireAuth, searchRouter)
+app.use('/api/timeline', requireAuth, timelineRouter)
+app.use('/api/report', requireAuth, reportRouter)
+app.use('/api/analytics', requireAuth, analyticsRouter)
+
+// Komercijala (§37–§40, §50–§51). Every one of these routers adds requireOwner of its own: §4 —
+// "ne može pristupati financijskim izvještajima" — and these are the only routes that carry a
+// price, a cost or a customer. Deliberately grouped together and kept out of routes/inspection.ts,
+// which is the screen handed to an inspector (§26).
+app.use('/api/customers', requireAuth, customersRouter)
+app.use('/api/sales', requireAuth, salesRouter)
+app.use('/api/expenses', requireAuth, expensesRouter)
+app.use('/api/economics', requireAuth, economicsRouter)
+app.use('/api/subsidies', requireAuth, subsidiesRouter)
 
 // §35 — the only unauthenticated data route in the application. Deliberately mounted apart from
 // everything else and without requireAuth, so it can never pick up a farm scope by accident: what
