@@ -14,12 +14,49 @@ export function formatDateTime(iso: string | null | undefined): string {
   return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}. · ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/** Decimal comma, and no trailing ",00" on whole numbers. */
+/**
+ * Decimal comma, dot for thousands, and no trailing ",00" on whole numbers.
+ *
+ * The grouping arrived with Etapa 4 and applies everywhere. It was missing since Etapa 2 and
+ * nobody noticed until §40 put "2304 kg" next to "3.362,00 €" on one card — at which point it
+ * reads as a bug rather than a style, because Croatian writes 2.304. Display only; nothing parses
+ * this back.
+ */
 export function formatNumber(value: number | null | undefined, decimals = 2): string {
   if (value === null || value === undefined) return '—'
-  const fixed = Number.isInteger(value) ? String(value) : value.toFixed(decimals)
-  return fixed.replace('.', ',')
+  const fixed = Number.isInteger(value) ? String(Math.abs(value)) : Math.abs(value).toFixed(decimals)
+  const [whole, fraction] = fixed.split('.')
+  const grouped = whole!.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return `${value < 0 ? '−' : ''}${grouped}${fraction ? `,${fraction}` : ''}`
 }
+
+/**
+ * "1234.5" → "1.234,50 €". Croatian convention: comma for decimals, dot for thousands, symbol
+ * after the number with a non-breaking space so it never wraps onto its own line.
+ */
+export function formatEur(value: number | null | undefined, decimals = 2): string {
+  if (value === null || value === undefined) return '—'
+  const [whole, fraction = ''] = Math.abs(value).toFixed(decimals).split('.')
+  const grouped = whole!.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  const sign = value < 0 ? '−' : ''
+  return `${sign}${grouped}${decimals > 0 ? `,${fraction}` : ''} €`
+}
+
+/** Month names in the nominative, for the §19 calendar headings. */
+export const MONTHS = [
+  'Siječanj',
+  'Veljača',
+  'Ožujak',
+  'Travanj',
+  'Svibanj',
+  'Lipanj',
+  'Srpanj',
+  'Kolovoz',
+  'Rujan',
+  'Listopad',
+  'Studeni',
+  'Prosinac',
+] as const
 
 export function todayIso(): string {
   const d = new Date()

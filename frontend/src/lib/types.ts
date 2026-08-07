@@ -576,7 +576,11 @@ export interface PackagingRun {
   packagedOn: string
   jarSizeG: number
   jarCount: number
+  /** §37 — maintained by the sales routes; remainingCount is generated in the database. */
+  soldCount: number
+  remainingCount: number
   totalKg: number
+  remainingKg: number
   bestBefore: string | null
   isNational: boolean
   serialFrom: string | null
@@ -705,7 +709,20 @@ export interface TraceabilityChain {
     published: boolean
     publicToken: string | null
   }[]
-  sales: unknown[]
+  /** §37 — empty for a worker, whose response never carries prices or customers (§4). */
+  sales: {
+    id: string
+    saleId: string
+    soldOn: string
+    channel: string
+    customerName: string | null
+    kind: string
+    description: string
+    quantity: number
+    unit: string
+    lineTotal: number | null
+    honeyKg: number
+  }[]
 }
 
 /** §35 — everything the public jar page is allowed to know. Mirrors the server's SELECT list. */
@@ -720,4 +737,417 @@ export interface PublicJar {
   laboratoryChecked: boolean
   netWeightG: number
   isNational: boolean
+}
+
+// ───────────────────────────────────────────────── Etapa 4 — komercijala, ekonomika, sezona
+
+export type CustomerKind = 'person' | 'company' | 'shop' | 'restaurant' | 'distributor'
+
+export interface Customer {
+  id: string
+  kind: CustomerKind
+  name: string
+  oib: string | null
+  address: string | null
+  city: string | null
+  postalCode: string | null
+  contactPerson: string | null
+  phone: string | null
+  email: string | null
+  notes: string | null
+  active: boolean
+  /** Only on the list response, which joins the totals. */
+  salesCount?: number
+  totalSpent?: number
+  lastSaleOn?: string | null
+}
+
+export type SaleChannel = 'direct' | 'market' | 'shop' | 'restaurant' | 'distributor' | 'online' | 'other'
+export type SalePayment = 'cash' | 'transfer' | 'card' | 'other'
+export type SaleItemKind = 'jars' | 'bulk' | 'other'
+
+export interface Sale {
+  id: string
+  customerId: string | null
+  customerName: string | null
+  soldOn: string
+  channel: SaleChannel
+  documentNumber: string | null
+  payment: SalePayment
+  paid: boolean
+  notes: string | null
+  total: number
+  honeyKg: number
+  itemCount: number
+  createdAt: string
+}
+
+export interface SaleItem {
+  id: string
+  kind: SaleItemKind
+  packagingId: string | null
+  batchId: string | null
+  lotCode: string | null
+  honeyType: string | null
+  description: string
+  quantity: number
+  unit: string
+  unitPrice: number
+  lineTotal: number
+  honeyKg: number
+}
+
+/** What the §37 form may draw from. */
+export interface SaleOptions {
+  customers: { id: string; name: string; kind: CustomerKind }[]
+  runs: {
+    id: string
+    lotCode: string
+    honeyType: string
+    productId: string | null
+    productName: string | null
+    jarSizeG: number
+    jarCount: number
+    soldCount: number
+    remainingCount: number
+    packagedOn: string | null
+    bestBefore: string | null
+  }[]
+  batches: { id: string; lotCode: string; honeyType: string; availableKg: number }[]
+}
+
+export type ExpenseCategory =
+  | 'sugar' | 'medicine' | 'fuel' | 'packaging' | 'foundation' | 'queens' | 'hives'
+  | 'equipment' | 'transport' | 'laboratory' | 'membership' | 'labour' | 'other'
+
+export interface Expense {
+  id: string
+  apiaryId: string | null
+  apiaryName: string | null
+  spentOn: string
+  category: ExpenseCategory
+  categoryLabel: string
+  supplier: string | null
+  description: string | null
+  amount: number
+  vatAmount: number | null
+  documentId: string | null
+  documentTitle: string | null
+  notes: string | null
+  createdAt: string
+}
+
+export interface ApiaryEconomics {
+  apiaryId: string | null
+  apiaryName: string
+  revenue: number
+  honeyRevenue: number
+  expenses: number
+  profit: number
+  producedKg: number
+  soldKg: number
+  colonies: number
+  kgPerColony: number | null
+  costPerKg: number | null
+  pricePerKg: number | null
+}
+
+export interface Economics {
+  year: number
+  years: number[]
+  totals: Omit<ApiaryEconomics, 'apiaryId' | 'apiaryName'>
+  apiaries: ApiaryEconomics[]
+  expenseBreakdown: { category: string; label: string; total: number }[]
+  monthlyRevenue: { month: number; total: number }[]
+}
+
+export interface HiveYield {
+  hiveId: string
+  code: string
+  apiaryName: string | null
+  kg: number
+  harvests: number
+  queenCode: string | null
+  queenLine: string | null
+  queenYear: number | null
+}
+
+export interface WinterLosses {
+  season: string
+  preparedOn: string
+  checkedOn: string
+  prepared: number
+  survived: number
+  lost: number
+  lossPercent: number | null
+  reasons: { reason: string; count: number }[]
+}
+
+export interface Analytics {
+  year: number
+  years: number[]
+  hives: {
+    top: HiveYield[]
+    bottom: HiveYield[]
+    all: HiveYield[]
+    averageKg: number | null
+    totalKg: number
+    /** Always true — §41's figures are a harvest split evenly, never a per-hive weighing. */
+    estimated: boolean
+  }
+  queenLines: { line: string; hives: number; averageKg: number; differencePercent: number | null }[]
+  losses: { current: WinterLosses; previous: WinterLosses; reasonLabels: Record<string, string> }
+}
+
+export interface Pasture {
+  id: string
+  apiaryId: string | null
+  apiaryName: string | null
+  name: string
+  seasonYear: number
+  startsOn: string | null
+  endsOn: string | null
+  location: string | null
+  coloniesCount: number | null
+  expectedYieldKg: number | null
+  /** Derived from the harvests, never typed in. */
+  actualYieldKg: number
+  harvests: number
+  achievedPercent: number | null
+  notes: string | null
+}
+
+export interface Permission {
+  id: string
+  grantedBy: string
+  referenceNumber: string | null
+  validFrom: string | null
+  validUntil: string | null
+  documentId: string | null
+  documentTitle: string | null
+  expired: boolean
+  notes: string | null
+}
+
+export interface Relocation {
+  id: string
+  apiaryId: string
+  apiaryName: string | null
+  fromLocation: string | null
+  toLocation: string
+  toLatitude: number | null
+  toLongitude: number | null
+  pasture: string | null
+  plannedOn: string
+  completedOn: string | null
+  coloniesCount: number | null
+  transportArranged: boolean
+  commissioner: string | null
+  commissionerPhone: string | null
+  status: 'planned' | 'done' | 'cancelled'
+  notes: string | null
+  permissions: Permission[]
+  checks: { key: string; label: string; ok: boolean; detail: string | null }[]
+  ready: boolean
+}
+
+export interface SeasonTask {
+  id: string
+  title: string
+  detail: string | null
+  region: string
+  apiaryKind: string
+}
+
+export interface SeasonCalendar {
+  month: number
+  region: string
+  migratory: boolean
+  months: { month: number; tasks: SeasonTask[] }[]
+}
+
+export interface TimelineEntry {
+  date: string
+  type: string
+  title: string
+  detail: string | null
+  link: string | null
+}
+
+export interface Timeline {
+  from: string
+  to: string
+  days: { date: string; entries: TimelineEntry[] }[]
+  total: number
+}
+
+export interface SearchHit {
+  type: string
+  typeLabel: string
+  id: string
+  title: string
+  subtitle: string | null
+  date: string | null
+  link: string
+}
+
+export interface SearchResult {
+  query: string
+  term: string
+  dateRange: string | null
+  hits: SearchHit[]
+}
+
+export interface SubsidyProgram {
+  id: string
+  code: string
+  name: string
+  authority: string | null
+  description: string | null
+  year: number | null
+  opensOn: string | null
+  closesOn: string | null
+  url: string | null
+  appliesTo: string
+  eligible: boolean
+  closed: boolean
+  requirements: {
+    id: string
+    label: string
+    documentCategory: string | null
+    required: boolean
+    documentId: string | null
+    documentTitle: string | null
+  }[]
+  documentPercent: number | null
+  missing: string[]
+  application: {
+    id: string
+    status: 'considering' | 'preparing' | 'submitted' | 'approved' | 'rejected' | 'withdrawn'
+    submittedOn: string | null
+    decisionOn: string | null
+    amountRequested: number | null
+    amountApproved: number | null
+    notes: string | null
+  } | null
+}
+
+export interface WeatherApiary {
+  apiaryId: string
+  apiaryName: string
+  available: boolean
+  current: {
+    temperature: number
+    humidity: number
+    precipitation: number
+    windSpeed: number
+    code: number
+    description: string
+  } | null
+  daily: {
+    date: string
+    min: number
+    max: number
+    precipitation: number
+    windSpeed: number
+    code: number
+    description: string
+  }[]
+  advice: { level: 'ok' | 'caution' | 'warning'; text: string } | null
+}
+
+/** §49 — the annual report. The financial keys are absent for a worker, never null. */
+export interface AnnualReport {
+  year: number
+  generatedOn: string
+  includesFinancials: boolean
+  farm: {
+    name: string
+    holder: string
+    entityType: string
+    oib: string | null
+    mibpg: string | null
+    address: string | null
+    city: string | null
+    eppNumber: string | null
+    association: string | null
+    responsiblePerson: string | null
+  }
+  apiaries: {
+    id: string
+    name: string
+    kind: string
+    place: string | null
+    hives: number
+    colonies: number
+    permitNumber: string | null
+    permitExpiresOn: string | null
+  }[]
+  summary: {
+    apiaries: number
+    colonies: number
+    producedKg: number
+    kgPerColony: number | null
+    harvests: number
+    treatments: number
+    varroaChecks: number
+    labTests: number
+  }
+  honeyTypes: { honeyType: string; kg: number; batches: number; share: number }[]
+  harvests: {
+    id: string
+    harvestedOn: string
+    pasture: string
+    apiaryName: string
+    lotCode: string | null
+    honeyType: string | null
+    totalKg: number | null
+    moisturePercent: number | null
+    hiveCount: number
+    hiveRange: string | null
+  }[]
+  queens: {
+    id: string
+    code: string
+    year: number | null
+    line: string | null
+    origin: string | null
+    status: string
+    colonies: number
+  }[]
+  treatments: {
+    id: string
+    productName: string
+    activeSubstance: string | null
+    lotNumber: string | null
+    startedOn: string | null
+    endedOn: string | null
+    withdrawalUntil: string | null
+    dose: string | null
+    apiaryName: string
+    hiveCount: number
+  }[]
+  varroa: {
+    checkedOn: string | null
+    apiaryName: string
+    method: string
+    phase: string
+    mitesFound: number
+    infestationPercent: number | null
+    mitesPerDay: number | null
+  }[]
+  labTests: {
+    id: string
+    laboratory: string | null
+    reportNumber: string | null
+    sampledOn: string | null
+    testedOn: string | null
+    lotCode: string
+    honeyType: string
+  }[]
+  losses: WinterLosses & { reasonLabels: Record<string, string> }
+  hiveYields: { estimated: boolean; averageKg: number | null; top: HiveYield[] }
+  sales?: { count: number; revenue: number; honeyKg: number }
+  expenses?: { total: number; breakdown: { category: string; label: string; total: number; entries: number }[] }
+  economics?: { profit: number; apiaries: ApiaryEconomics[] }
 }
