@@ -1,6 +1,8 @@
 import {
   Boxes,
   CalendarCheck,
+  CloudOff,
+  Crown,
   Grid2x2,
   Home,
   LogOut,
@@ -17,6 +19,7 @@ import { BrandMark } from '@/components/BrandMark'
 import { useConfirm } from '@/components/ui/confirm'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/auth/AuthContext'
+import { useOutbox } from '@/lib/outbox'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 
@@ -40,6 +43,7 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const { current, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const { pending, online } = useOutbox()
   const confirm = useConfirm()
   const { showError } = useToast()
   const navigate = useNavigate()
@@ -71,6 +75,16 @@ export function AppShell() {
             <p className="truncate text-xs text-muted-foreground">EPP {current.farm.eppNumber}</p>
           )}
         </div>
+        {(!online || pending.length > 0) && (
+          <NavLink
+            to="/unos"
+            aria-label={`${pending.length} zapisa čeka slanje`}
+            className="flex items-center gap-1 rounded-lg bg-caution/15 px-2 py-1.5 text-xs font-medium text-caution"
+          >
+            <CloudOff className="size-4" />
+            {pending.length > 0 && <span className="tabular">{pending.length}</span>}
+          </NavLink>
+        )}
         <button
           type="button"
           onClick={toggleTheme}
@@ -174,6 +188,22 @@ export function AppShell() {
               >
                 <UserCog className="size-4" />
                 Profil i gospodarstvo
+              </NavLink>
+              <NavLink
+                to="/matice"
+                onClick={() => setMenuOpen(false)}
+                className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
+              >
+                <Crown className="size-4" />
+                Matice
+              </NavLink>
+              <NavLink
+                to="/kosnice/naljepnice"
+                onClick={() => setMenuOpen(false)}
+                className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
+              >
+                <Boxes className="size-4" />
+                QR naljepnice
               </NavLink>
               {/* Etapa 2+ adds the rest of the drawer: dokumenti, skladište, prodaja, izvještaji. */}
             </nav>

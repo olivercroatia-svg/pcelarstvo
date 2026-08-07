@@ -1,7 +1,18 @@
-import { ArrowRight, Grid2x2 } from 'lucide-react'
+import { ArrowRight, CloudOff, Grid2x2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/auth/AuthContext'
+import { useOutbox } from '@/lib/outbox'
+import type { Apiary, Hive } from '@/lib/types'
+import { useResource } from '@/lib/useResource'
+
+interface RecentInspection {
+  id: string
+  inspectedAt: string
+  hiveCode: string
+  apiaryName: string | null
+  isBatch: boolean
+}
 
 function greeting(hour: number): string {
   if (hour < 11) return 'Dobro jutro'
@@ -9,11 +20,43 @@ function greeting(hour: number): string {
   return 'Dobra večer'
 }
 
+function relativeDay(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
+  if (days <= 0) return 'danas'
+  if (days === 1) return 'jučer'
+  return `prije ${days} dana`
+}
+
+function Stat({ value, label, to }: { value: number; label: string; to?: string }) {
+  const body = (
+    <CardContent className="py-4">
+      <p className="tabular text-3xl font-bold leading-none">{value}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+    </CardContent>
+  )
+  return to ? (
+    <Link to={to}>
+      <Card className="h-full transition-colors hover:border-primary">{body}</Card>
+    </Link>
+  ) : (
+    <Card className="h-full">{body}</Card>
+  )
+}
+
 export function DashboardPage() {
   const { current } = useAuth()
-  if (!current) return null
+  const { pending } = useOutbox()
 
+  const { data: apiaryData } = useResource<{ apiaries: Apiary[] }>('/apiaries')
+  const { data: staleData } = useResource<{ hives: Hive[] }>('/hives?staleDays=14')
+  const { data: recentData } = useResource<{ inspections: RecentInspection[] }>('/inspections?limit=8')
+
+  if (!current) return null
   const { user, completeness } = current
+
+  const apiaries = apiaryData?.apiaries ?? []
+  const colonies = apiaries.reduce((sum, a) => sum + (a.colonyCount ?? 0), 0)
+  const needsLook = staleData?.hives.length ?? 0
 
   return (
     <div className="mx-auto max-w-lg space-y-5">
@@ -24,7 +67,20 @@ export function DashboardPage() {
         <p className="text-sm text-muted-foreground">Vaš pčelinjak danas</p>
       </div>
 
-      {/* §5 — the profile nudge. Hidden once there is nothing left to ask for. */}
+      {pending.length > 0 && (
+        <Link to="/unos">
+          <Card className="border-caution/50">
+            <CardContent className="flex items-center gap-2 py-3 text-sm">
+              <CloudOff className="size-4 shrink-0 text-caution" aria-hidden />
+              <span className="flex-1">
+                {pending.length} {pending.length === 1 ? 'zapis čeka' : 'zapisa čeka'} slanje
+              </span>
+              <ArrowRight className="size-4 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {completeness.percent < 100 && (
         <Card className="bg-honeycomb">
           <CardContent className="pt-4">
@@ -54,28 +110,62 @@ export function DashboardPage() {
         </Card>
       )}
 
-      {/* Etapa 1 replaces this with the real counters, alerts and journal from §6. Until apiaries
-          exist there is nothing honest to count, so the empty state points at the first step. */}
-      <Card>
-        <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-            <Grid2x2 className="size-6" />
-          </span>
-          <div>
-            <p className="font-medium">Još nemate pčelinjaka</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Dodajte prvi pčelinjak i počnite voditi evidenciju košnica.
-            </p>
+      {apiaries.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+              <Grid2x2 className="size-6" />
+            </span>
+            <div>
+              <p className="font-medium">Još nemate pčelinjaka</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Dodajte prvi pčelinjak i počnite voditi evidenciju košnica.
+              </p>
+            </div>
+            <Link
+              to="/pcelinjaci/novi"
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Dodaj pčelinjak
+              <ArrowRight className="size-4" />
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <Stat value={colonies} label="aktivnih zajednica" to="/kosnice" />
+            <Stat value={apiaries.length} label="pčelinjaka" to="/pcelinjaci" />
+            <Stat value={needsLook} label="za pregled" to="/kosnice" />
           </div>
-          <Link
-            to="/pcelinjaci"
-            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Dodaj pčelinjak
-            <ArrowRight className="size-4" />
-          </Link>
-        </CardContent>
-      </Card>
+
+          {recentData && recentData.inspections.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Dnevnik</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {recentData.inspections.map((entry) => (
+                    <li key={entry.id} className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="min-w-0 truncate">
+                        <span className="font-medium">{entry.hiveCode}</span>
+                        {entry.apiaryName ? (
+                          <span className="text-muted-foreground"> · {entry.apiaryName}</span>
+                        ) : null}
+                        {entry.isBatch ? <span className="text-muted-foreground"> · skupno</span> : null}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {relativeDay(entry.inspectedAt)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   )
 }

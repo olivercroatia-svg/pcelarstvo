@@ -174,3 +174,30 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* Printing is only ever the QR label sheet (§11). Strip the app chrome and force a light ground —
+   a dark-mode print would empty a toner cartridge and produce unscannable codes. */
+@media print {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  @page {
+    margin: 10mm;
+  }
+}
