@@ -24,12 +24,14 @@ npm run dev         # tsx watch → 127.0.0.1:3001
 npm run typecheck   # tsc --noEmit
 npm run build       # tsc → dist/
 npm run migrate     # node migrate.cjs — applies migrations/*.sql, each exactly once
+npm test            # builds first, then node --test over test/*.test.mjs
 
 # frontend/
 npm run dev         # Vite :5173, proxies /api → 127.0.0.1:3001
 npm run build       # tsc -b && vite build
 npx tsc -b          # typecheck only — there is no `typecheck` script here
 npm run lint        # oxlint (currently warnings only, exit 0)
+npm test            # node --test --experimental-strip-types over src/lib/*.test.ts
 
 # repo root
 scripts/backup.sh   # mysqldump + uploads tarball; cron target on the VPS (§56)
@@ -43,11 +45,19 @@ the AI layer reports itself unavailable and everything else works — see § The
 
 ### Tests
 
-There is no test suite in the repository. Verification is (a) end-to-end bash scripts that drive
-the API with `curl`, written per stage and kept in the session scratchpad, and (b) manual
+`npm test` on both sides runs the node test runner over a deliberately small suite: the pure
+functions where a wrong answer is silent — the shared invariants (`lib/invariants.ts`), upload-root
+resolution, audio duration parsing, Croatian decimal input, outbox scoping. No runner, no mocks, no
+database. Everything else is still verified the way it always was: end-to-end scripts that drive the
+API with `fetch`/`curl`, written per stage and kept in the session scratchpad, plus manual
 click-through at 390×844.
 
-Six things that will otherwise cost you an hour:
+The division is on purpose. A unit test proves a formula; it cannot prove that ten simultaneous
+requests do not deadlock, that a farm cannot read another farm's rows, or that the register still
+works without an API key. Those need the running application, and the traps below are all things
+the type checker and the unit suite both said were fine.
+
+Eleven things that will otherwise cost you an hour:
 
 - **TypeScript does not check SQL.** A query with a wrong column name typechecks perfectly and
   fails at runtime. Run every new query against the dev DB before believing it — seven of the
@@ -73,6 +83,33 @@ Six things that will otherwise cost you an hour:
 - **`UID` is readonly in bash.** `UID=$(…)` fails with one line of stderr that scrolls past, then
   every `WHERE id='$UID'` runs against the empty string and *passes vacuously*. Any shell variable
   a test uses to hold a captured id should be named something bash does not already own.
+- **A `pool` query inside an open transaction stops the whole process.** The pool is
+  `connectionLimit: 10, queueLimit: 0, waitForConnections: true` (`db.ts`) — an unbounded queue with
+  no acquire timeout. A transaction holding a connection while calling something that goes to the
+  pool waits for a connection it is itself preventing from being freed; at ten concurrent requests
+  every connection is in that state, `conn.release()` in the `finally` never runs, and **no route
+  in the process answers again** until a restart. This is why `lab.ts` reads its parameter codes
+  *before* `pool.getConnection()`. When a helper is called inside a transaction, pass it the `conn`
+  — and check what the helper itself calls.
+- **A `DELETE` on a key that matches nothing still takes a gap lock.** `laboratory_values` is keyed
+  `(test_id, parameter_code)`, so `DELETE … WHERE test_id = ?` for a freshly generated id locks a
+  gap in the clustered index. Gap locks do not exclude one another, but the insert intent that
+  follows conflicts with all of them, so several concurrent writes deadlock and InnoDB kills all but
+  one — 8 of 12 requests returned 500 with `ER_LOCK_DEADLOCK`. On a create path there is nothing to
+  delete: skip it. Same reasoning, same fix everywhere the code writes rows for an id it just made.
+- **`SELECT … FOR UPDATE` that matches nothing is not a lock you can branch on.** It takes a gap
+  lock, and two transactions can hold the same gap at once — so check-then-insert on a unique key is
+  *not* atomic no matter how it looks. Both callers find nothing, both insert, one gets
+  `ER_DUP_ENTRY` or a deadlock, and the user reads it as a server error for tapping twice. Let the
+  UNIQUE decide: `INSERT … ON DUPLICATE KEY UPDATE`, then read the row back — never the id you
+  generated, because the caller that lost the race updated the winner's row. Assignments inside
+  `ON DUPLICATE KEY UPDATE` run left to right, so a column can still read another's stored value if
+  it is assigned first (`subsidies.ts` relies on exactly that).
+- **`[[ -f x ]] && source x` exits a `set -e` script when the file is absent** — the list returns
+  the test's status, and the absent file is the normal case. Use an explicit `if`.
+- **Passing `undefined` to a parameter with a default triggers the default.** A test calling
+  `resolveUploadRoot(undefined)` reads the real `UPLOAD_DIR` and passes only on a machine that does
+  not set it. Pass a value that is falsy but present (`''`) when the point is to test the default.
 
 ## Architecture
 
@@ -138,6 +175,20 @@ Breaking one of these is a defect, not a style preference.
   `commerce.ts` (kg and € per apiary), `production.ts` (harvest ↔ withdrawal cross-check),
   `obligations.ts` (which rule applies), `varroa.ts` (thresholds), `lot.ts` (LOT codes),
   `ai.ts` (the spend cap and the model call).
+- **A rule enforced on one path is enforced on none.** Four modules exist only to stop that:
+  `invariants.ts` (a LOT total must cover packed *and* bulk-sold honey; a draw cannot exceed the
+  shelf; a treatment cannot end before it starts), `ownership.ts` (`assertFarmReference` — a foreign
+  key proves the row exists, never whose it is, so every client-supplied id is checked against
+  `req.farm.id`), `storage.ts` (`resolveUploadRoot` — the one upload root the app, `backup.sh` and
+  GDPR erasure all agree on) and `audio-duration.ts` (a local preflight so an over-long recording is
+  refused before it is paid for). Each was written after the same rule was found applied on create
+  but not on update, or in the app but not in the backup. Add a path, call the helper.
+- **Unmeasurable is not invalid.** `audioDurationSeconds` returns `null` for the containers it
+  cannot read, and a fragmented MP4 — what `MediaRecorder` produces on iOS, header written before
+  recording ends — carries no duration at all. Rejecting `null` told an iPhone user to record again
+  in the only format their phone makes. The preflight falls back to the browser's measurement and
+  then lets the request through; the provider's own duration is the authority, and
+  `MAX_AUDIO_BYTES` bounds the worst case.
 
 ### Regulation is data, not code (§54)
 
@@ -228,7 +279,14 @@ so guarded ALTERs use the `information_schema` + `PREPARE`/`EXECUTE` idiom alrea
   `/programs/moj-pcelinjak/`.
 - **Offline is append-only.** The Dexie outbox (`lib/outbox.tsx`) queues new records; editing
   requires a connection. Extending it to updates would need CRDTs or per-field versioning — out of
-  proportion to the problem.
+  proportion to the problem. The queue is scoped to an account (`[userId+farmId]`), so a record
+  written on one login can never be sent under another.
+- **A Dexie index change needs an `.upgrade()`, and the reason is not obvious.** IndexedDB leaves a
+  row out of a compound index when any part of the key is `undefined`. Adding `[userId+farmId]` in
+  v2 therefore made every v1 row invisible to the scoped read that is now the only way rows are
+  fetched — not listed, not sent, not even discardable, while the pending badge read zero and the
+  screen said everything was synced. Any new store shape must say what happens to the rows already
+  there.
 - **PDFs are browser print CSS** (`@page`, `print:hidden`), not a PDF library — see `Declaration`,
   `FormPreview`, `AnnualReport`.
 - **Charts are hand-rolled SVG and divs** (`components/Chart.tsx`). No chart library; that was a
@@ -238,8 +296,14 @@ so guarded ALTERs use the `information_schema` + `PREPARE`/`EXECUTE` idiom alrea
 - Status colours are semantic tokens: `text-ok | text-caution | text-warning | text-critical`, both
   themes defined in `index.css`. Do not reach for a raw palette value.
 - `<Disclaimer />` carries the §55 wording — never retype that paragraph into a screen.
-- Heavy routes are lazy (ZXing scanner, print pages). Check `components/lazy.tsx` before adding a
-  static import of a large dependency.
+- **Every page is its own chunk, so every page can fail to arrive.** Routes go through `LazyRoute`
+  (`components/lazy.tsx`), which is Suspense *and* an error boundary — Suspense covers the wait, not
+  the failure. A rejected dynamic import throws past Suspense and unmounts the whole tree, which for
+  a beekeeper on a hillside, or anyone with the tab open across a redeploy, is a white screen.
+  React caches that rejection on the lazy component, so the only real recovery is a reload, and the
+  boundary is keyed on the pathname so one failed screen does not poison the next. The class
+  component is not a style lapse: `getDerivedStateFromError` has no hook equivalent. Check this file
+  before adding a static import of a large dependency.
 - **Ask before you draw.** Anything that costs a model call consults `useAiStatus()` first and
   renders nothing when the layer is unavailable. Offering a button that answers 503 wastes the
   beekeeper's time twice.
@@ -258,10 +322,15 @@ so guarded ALTERs use the `information_schema` + `PREPARE`/`EXECUTE` idiom alrea
 
 ## What "done" means here
 
-1. `backend: npm run typecheck` and `frontend: npx tsc -b` both clean.
+1. `backend: npm run typecheck` and `frontend: npx tsc -b` both clean, `npm test` green on both.
 2. The stage's scenario clicked through the **UI at 390×844** — not only curl.
 3. Console clean, no horizontal scroll.
 4. č/ć/š/ž/đ correct in the UI, in MySQL (utf8mb4) and in printed output.
+5. **Anything that writes runs concurrently at least once.** A dozen `Promise.all` requests against
+   one route is a few lines and it is the only thing that finds a pool starved by its own
+   transaction, a gap-lock deadlock, or a check-then-insert on a unique key. Every one of those got
+   through review, the type checker and the unit suite in this repository; none survived the first
+   burst of twelve.
 
 ## The repository is public
 
@@ -297,6 +366,11 @@ before trusting any of it.
 the `OPERATOR` block in `pages/Privacy.tsx`, and the text should be read by a lawyer before the
 domain is public. The page shows a warning banner while those fields are blank, so it cannot ship
 unnoticed.
+
+**And one thing needs an iPhone.** The voice preflight no longer refuses a recording it cannot
+measure, and a synthetic fragmented MP4 proves the route now reaches the policy gate instead of
+answering 400. That Safari actually produces that container is a conclusion drawn from how
+`MediaRecorder` works, not a measurement — record one inspection on an iOS device before stage 7.
 
 The full plan, including the per-stage verification scenarios, lives at
 `~/.claude/plans/uvezi-design-iz-linka-vivid-squirrel.md`.
