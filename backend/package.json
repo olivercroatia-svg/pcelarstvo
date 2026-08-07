@@ -9,7 +9,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "migrate": "node migrate.cjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

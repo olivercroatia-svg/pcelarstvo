@@ -18,7 +18,7 @@
 #
 # Restore, in the same order:
 #     zcat db-YYYY-MM-DD.sql.gz | mysql -u <user> -p <database>
-#     tar -xzf uploads-YYYY-MM-DD.tar.gz -C <project root>
+#     tar -xzf uploads-YYYY-MM-DD.tar.gz -C <UPLOAD_DIR parent>
 
 set -euo pipefail
 
@@ -27,19 +27,33 @@ BACKUP_DIR="${BACKUP_DIR:-$PROJECT_ROOT/../backups/moj-pcelinjak}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 BACKUP_REMOTE="${BACKUP_REMOTE:-}"
 
-# The same .env the application and migrate.cjs read, so there is one place a password lives.
-if [[ -f "$PROJECT_ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "$PROJECT_ROOT/.env"
-  set +a
-fi
+# The same .env files the application and migrate.cjs read, so there is one place a password lives.
+# Both of them, and in this order: backend/src/env.ts loads backend/.env as well, and dotenv keeps
+# the first value it sees while `source` keeps the last — so sourcing backend/.env first and the
+# root one second gives the application's precedence, not the reverse. A backup that reads a
+# different UPLOAD_DIR than the app writes to is the failure this whole section exists to prevent.
+# An explicit `if` rather than `[[ -f x ]] && source x`: under `set -e` that list exits non-zero
+# when the file is absent, which is the normal case, and takes the whole backup with it.
+set -a
+for ENV_FILE in "$PROJECT_ROOT/backend/.env" "$PROJECT_ROOT/.env"; do
+  if [[ -f "$ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+  fi
+done
+set +a
 
 DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-3306}"
 DB_NAME="${DB_NAME:?DB_NAME is not set — check .env}"
 DB_USER="${DB_USER:?DB_USER is not set — check .env}"
 DB_PASSWORD="${DB_PASSWORD:-}"
+
+UPLOAD_CONFIGURED="${UPLOAD_DIR:-}"
+UPLOAD_ROOT="${UPLOAD_CONFIGURED:-$PROJECT_ROOT/uploads}"
+if [[ "$UPLOAD_ROOT" != /* ]]; then
+  UPLOAD_ROOT="$PROJECT_ROOT/$UPLOAD_ROOT"
+fi
 
 STAMP="$(date +%F-%H%M)"
 mkdir -p "$BACKUP_DIR"
@@ -88,11 +102,18 @@ mysqldump --defaults-extra-file="$CNF" \
   "$DB_NAME" | gzip -9 >"$DB_FILE"
 
 UPLOADS_FILE="$BACKUP_DIR/uploads-$STAMP.tar.gz"
-if [[ -d "$PROJECT_ROOT/uploads" ]]; then
+if [[ -d "$UPLOAD_ROOT" ]]; then
   echo "[backup] archiving uploads → $UPLOADS_FILE"
-  tar -czf "$UPLOADS_FILE" -C "$PROJECT_ROOT" uploads
+  tar -czf "$UPLOADS_FILE" -C "$(dirname "$UPLOAD_ROOT")" "$(basename "$UPLOAD_ROOT")"
+elif [[ -n "$UPLOAD_CONFIGURED" ]]; then
+  # Somebody named this directory, so its absence is a typo or a mount that did not come back, not
+  # an empty install. Exiting 0 here would send the cron a nightly success for a backup holding
+  # none of the scanned rješenja and laboratory findings — the one failure this script must never
+  # report quietly.
+  echo "[backup] UPLOAD_DIR points at $UPLOAD_ROOT, which does not exist" >&2
+  exit 1
 else
-  echo "[backup] no uploads/ directory — skipping file archive"
+  echo "[backup] no uploads directory at $UPLOAD_ROOT yet — skipping file archive"
 fi
 
 # Fail loudly on a truncated dump, before the remote copy and before the retention sweep deletes
