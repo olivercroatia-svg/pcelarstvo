@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusPill } from '@/components/ui/status'
 import { useAuth } from '@/auth/AuthContext'
+import { formatNumber, plural } from '@/lib/format'
 import { useOutbox } from '@/lib/outbox'
-import type { Apiary, Hive, ObligationCard } from '@/lib/types'
+import type { Apiary, Hive, HoneyBatch, ObligationCard } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
 
 interface RecentInspection {
@@ -52,6 +53,9 @@ export function DashboardPage() {
   const { data: staleData } = useResource<{ hives: Hive[] }>('/hives?staleDays=14')
   const { data: recentData } = useResource<{ inspections: RecentInspection[] }>('/inspections?limit=8')
   const { data: obligationData } = useResource<{ obligations: ObligationCard[] }>('/obligations')
+  const { data: batchData } = useResource<{ batches: HoneyBatch[] }>(
+    `/batches?year=${new Date().getFullYear()}`,
+  )
 
   if (!current) return null
   const { user, completeness } = current
@@ -59,6 +63,9 @@ export function DashboardPage() {
   const apiaries = apiaryData?.apiaries ?? []
   const colonies = apiaries.reduce((sum, a) => sum + (a.colonyCount ?? 0), 0)
   const needsLook = staleData?.hives.length ?? 0
+  const batches = batchData?.batches ?? []
+  const seasonKg = batches.reduce((sum, b) => sum + b.totalKg, 0)
+  const availableKg = batches.reduce((sum, b) => sum + b.availableKg, 0)
   // Only what actually needs attention reaches the dashboard; the full list lives under /obveze.
   const urgentObligations = (obligationData?.obligations ?? [])
     .filter((o) => o.level === 'critical' || o.level === 'warning')
@@ -167,6 +174,38 @@ export function DashboardPage() {
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   </Link>
                 ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* §68 — "Koliko sam meda proizveo? Koja serija je u kojoj staklenci?" Only shown once
+              there is honey to report; an empty card teaching the beekeeper about a module they
+              have not used yet is just noise on the screen they open most often. */}
+          {seasonKg > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Med u {new Date().getFullYear()}.</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <Link to="/vrcanja" className="rounded-lg bg-secondary/60 p-3">
+                    <p className="tabular text-xl font-semibold">{formatNumber(seasonKg)} kg</p>
+                    <p className="text-xs text-muted-foreground">izvrcano</p>
+                  </Link>
+                  <Link to="/skladiste" className="rounded-lg bg-secondary/60 p-3">
+                    <p className="tabular text-xl font-semibold">{formatNumber(availableKg)} kg</p>
+                    <p className="text-xs text-muted-foreground">na skladištu</p>
+                  </Link>
+                </div>
+                <Link
+                  to="/serije"
+                  className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 text-sm hover:bg-accent"
+                >
+                  <span className="min-w-0 flex-1">
+                    {batches.length} {plural(batches.length, 'serija', 'serije', 'serija')} meda
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
               </CardContent>
             </Card>
           )}

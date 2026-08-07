@@ -7,10 +7,13 @@ import {
   CloudOff,
   Crown,
   Droplet,
+  Droplets,
   FolderOpen,
+  GitBranch,
   Grid2x2,
   HeartPulse,
   Home,
+  Layers,
   LogOut,
   Menu,
   Moon,
@@ -18,7 +21,9 @@ import {
   Settings2,
   Sun,
   Syringe,
+  Tag,
   UserCog,
+  Warehouse,
   X,
 } from 'lucide-react'
 import { useState, type ComponentType } from 'react'
@@ -49,17 +54,48 @@ const BOTTOM_NAV: NavItem[] = [
   { to: '/obveze', label: 'Obveze', icon: CalendarCheck },
 ]
 
-/** §22–§27, §53 — the modules that live in the drawer rather than the bottom bar. */
-const DRAWER_LINKS: { to: string; label: string; icon: ComponentType<{ className?: string }> }[] = [
-  { to: '/profil', label: 'Profil i gospodarstvo', icon: UserCog },
-  { to: '/matice', label: 'Matice', icon: Crown },
-  { to: '/kosnice/naljepnice', label: 'QR naljepnice', icon: Boxes },
-  { to: '/varroa', label: 'Kontrola varoe', icon: Bug },
-  { to: '/tretmani', label: 'VMP i tretmani', icon: Syringe },
-  { to: '/zdravlje', label: 'Zdravstveni karton', icon: HeartPulse },
-  { to: '/prihrana', label: 'Prihrana', icon: Droplet },
-  { to: '/dokumenti', label: 'Dokumenti', icon: FolderOpen },
-  { to: '/inspekcija', label: 'Inspekcija', icon: ClipboardCheck },
+/**
+ * The modules that live in the drawer rather than the bottom bar, grouped the way a beekeeper
+ * thinks about them: the colonies, their health, the honey, and the paperwork.
+ */
+const DRAWER_GROUPS: {
+  title: string
+  links: { to: string; label: string; icon: ComponentType<{ className?: string }> }[]
+}[] = [
+  {
+    title: 'Pčelinjak',
+    links: [
+      { to: '/matice', label: 'Matice', icon: Crown },
+      { to: '/kosnice/naljepnice', label: 'QR naljepnice', icon: Boxes },
+    ],
+  },
+  {
+    title: 'Zdravlje',
+    links: [
+      { to: '/varroa', label: 'Kontrola varoe', icon: Bug },
+      { to: '/tretmani', label: 'VMP i tretmani', icon: Syringe },
+      { to: '/zdravlje', label: 'Zdravstveni karton', icon: HeartPulse },
+      { to: '/prihrana', label: 'Prihrana', icon: Droplet },
+    ],
+  },
+  {
+    title: 'Proizvodnja',
+    links: [
+      { to: '/vrcanja', label: 'Vrcanje', icon: Droplets },
+      { to: '/serije', label: 'Serije meda', icon: Layers },
+      { to: '/skladiste', label: 'Skladište', icon: Warehouse },
+      { to: '/proizvodi', label: 'Proizvodi', icon: Tag },
+      { to: '/sljedivost', label: 'Sljedivost', icon: GitBranch },
+    ],
+  },
+  {
+    title: 'Zakon i papiri',
+    links: [
+      { to: '/dokumenti', label: 'Dokumenti', icon: FolderOpen },
+      { to: '/inspekcija', label: 'Inspekcija', icon: ClipboardCheck },
+      { to: '/profil', label: 'Profil i gospodarstvo', icon: UserCog },
+    ],
+  },
 ]
 
 export function AppShell() {
@@ -225,29 +261,46 @@ export function AppShell() {
             </div>
 
             <nav className="flex-1 overflow-y-auto p-2">
-              {DRAWER_LINKS.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
-                >
-                  <Icon className="size-4" />
-                  {label}
-                </NavLink>
+              {DRAWER_GROUPS.map((group) => (
+                <div key={group.title} className="mb-2">
+                  <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {group.title}
+                  </p>
+                  {group.links.map(({ to, label, icon: Icon }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
+                    >
+                      <Icon className="size-4" />
+                      {label}
+                    </NavLink>
+                  ))}
+                </div>
               ))}
               {/* §54 — only system administrators; the server enforces it regardless. */}
               {current?.user.isAdmin && (
-                <NavLink
-                  to="/admin/obveze"
-                  onClick={() => setMenuOpen(false)}
-                  className="mt-1 flex min-h-11 items-center gap-3 rounded-lg border-t border-border px-3 pt-2 text-sm hover:bg-accent"
-                >
-                  <Settings2 className="size-4" />
-                  Administracija propisa
-                </NavLink>
+                <div className="mt-1 border-t border-border pt-2">
+                  <NavLink
+                    to="/admin/obveze"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
+                  >
+                    <Settings2 className="size-4" />
+                    Administracija propisa
+                  </NavLink>
+                  <NavLink
+                    to="/admin/proizvodnja"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
+                  >
+                    <Settings2 className="size-4" />
+                    Proizvodnja — propisi
+                  </NavLink>
+                </div>
               )}
-              {/* Etapa 3+ adds the rest of the drawer: skladište, prodaja, izvještaji. */}
+              {/* Etapa 4 adds the rest: prodaja, kupci, troškovi, izvještaji. */}
             </nav>
 
             <div className="border-t border-border p-2">

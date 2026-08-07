@@ -1,4 +1,17 @@
-import { Bug, CloudOff, Droplet, HeartPulse, Layers, Play, QrCode, RefreshCw, Syringe, Trash2 } from 'lucide-react'
+import {
+  Bug,
+  CloudOff,
+  Droplet,
+  Droplets,
+  HeartPulse,
+  Layers,
+  Play,
+  QrCode,
+  RefreshCw,
+  Syringe,
+  Trash2,
+  Warehouse,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -63,6 +76,8 @@ export function EntryPage() {
             { to: '/tretmani/novi', label: 'Tretman VMP', icon: Syringe },
             { to: '/prihrana', label: 'Prihrana', icon: Droplet },
             { to: '/zdravlje', label: 'Zdravstveni zapis', icon: HeartPulse },
+            { to: '/vrcanja/novo', label: 'Vrcanje', icon: Droplets },
+            { to: '/skladiste', label: 'Skladište', icon: Warehouse },
           ].map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
