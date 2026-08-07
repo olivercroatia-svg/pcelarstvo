@@ -1,5 +1,7 @@
 import { ArrowLeft, FlaskConical, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { AiScan, Unreadable } from '@/components/AiScan'
+import type { VmpDraft } from '@/lib/ai'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -38,6 +40,7 @@ export function VmpProductsPage() {
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [unreadable, setUnreadable] = useState<string[]>([])
 
   const set = (key: keyof typeof EMPTY, value: string) => setForm((prev) => ({ ...prev, [key]: value }))
 
@@ -119,6 +122,28 @@ export function VmpProductsPage() {
               <CardTitle className="text-base">Novi proizvod</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* §18 — "skeniranje kutije lijeka". Fills the fields below; withdrawalDays stays
+                  empty unless the box states a number, because §17's register is what an
+                  inspector reads and a guessed karenca there is worse than a blank one. */}
+              <AiScan<VmpDraft>
+                endpoint="/ai/read/vmp"
+                label="Fotografiraj kutiju lijeka"
+                hint="Slikajte kutiju ili uputu — polja ispod se popune, a vi ih provjerite."
+                onDraft={(d) => {
+                  setForm((prev) => ({
+                    name: d.name ?? prev.name,
+                    activeSubstance: d.activeSubstance ?? prev.activeSubstance,
+                    manufacturer: d.manufacturer ?? prev.manufacturer,
+                    form: d.form ?? prev.form,
+                    withdrawalDays: d.withdrawalDays === null ? prev.withdrawalDays : String(d.withdrawalDays),
+                    defaultDose: d.defaultDose ?? prev.defaultDose,
+                    defaultMethod: d.defaultMethod ?? prev.defaultMethod,
+                  }))
+                  setUnreadable(d.unreadable)
+                }}
+              >
+                <Unreadable fields={unreadable} />
+              </AiScan>
               <Field label="Naziv" error={fieldErrors.name}>
                 {(p) => <Input {...p} value={form.name} onChange={(e) => set('name', e.target.value)} autoFocus />}
               </Field>

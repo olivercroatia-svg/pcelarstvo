@@ -1,5 +1,7 @@
 import { ArrowLeft, Paperclip, Plus, Receipt, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { AiScan, Unreadable } from '@/components/AiScan'
+import type { ReceiptDraft } from '@/lib/ai'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -233,6 +235,7 @@ function ExpenseForm({
   const [documentId, setDocumentId] = useState('')
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [unreadable, setUnreadable] = useState<string[]>([])
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
@@ -271,6 +274,25 @@ function ExpenseForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} noValidate className="space-y-4">
+          {/* §39 — "fotografiranje računa". Owner-only end to end: the route itself is behind
+              requireOwner, so a worker never sees a supplier or an amount even in a draft. */}
+          <AiScan<ReceiptDraft>
+            endpoint="/ai/read/receipt"
+            label="Fotografiraj račun"
+            hint="Slikajte račun — datum, dobavljač i iznos se popune, a vi ih provjerite."
+            onDraft={(d) => {
+              if (d.spentOn) setSpentOn(d.spentOn)
+              if (d.supplier) setSupplier(d.supplier)
+              if (d.description) setDescription(d.description)
+              // Comma, not dot: the input is text and the rest of this form is Croatian.
+              if (d.amount !== null) setAmount(String(d.amount).replace('.', ','))
+              if (d.vatAmount !== null) setVatAmount(String(d.vatAmount).replace('.', ','))
+              if (d.category) setCategory(d.category as ExpenseCategory)
+              setUnreadable(d.unreadable)
+            }}
+          >
+            <Unreadable fields={unreadable} />
+          </AiScan>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Datum">
               {(p) => <Input {...p} type="date" value={spentOn} onChange={(e) => setSpentOn(e.target.value)} />}

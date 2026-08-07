@@ -1,5 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
+import { AiScan, Unreadable } from '@/components/AiScan'
+import type { LabDraft } from '@/lib/ai'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,6 +38,7 @@ export function LabTestNewPage() {
   const [notes, setNotes] = useState('')
   const [values, setValues] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const [unreadable, setUnreadable] = useState<string[]>([])
 
   if (loading) return <LoadingState />
   const parameters = data?.parameters ?? []
@@ -96,6 +99,33 @@ export function LabTestNewPage() {
           <CardTitle className="text-base">Nalaz</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* §31 — reads the header and the measured values off a photographed finding. It reads
+              values ONLY: the pass/fail verdict stays with lib/production.ts and the
+              administrator's thresholds, because a model agreeing with a regulatory limit is not
+              something this application should ever ship. */}
+          <AiScan<LabDraft>
+            endpoint="/ai/read/lab"
+            label="Fotografiraj nalaz"
+            hint="Slikajte nalaz ravno i po punoj širini — vrijednosti se upisuju u polja ispod."
+            onDraft={(d) => {
+              if (d.laboratory) setLaboratory(d.laboratory)
+              if (d.reportNumber) setReportNumber(d.reportNumber)
+              if (d.sampledOn) setSampledOn(d.sampledOn)
+              if (d.testedOn) setTestedOn(d.testedOn)
+              setValues((prev) => {
+                const next = { ...prev }
+                for (const [code, value] of Object.entries(d.values)) {
+                  // Croatian decimal comma: the inputs are text and the rest of the form already
+                  // speaks commas, so a dot here would read as a thousands separator.
+                  if (value !== null) next[code] = String(value).replace('.', ',')
+                }
+                return next
+              })
+              setUnreadable(d.unreadable)
+            }}
+          >
+            <Unreadable fields={unreadable} />
+          </AiScan>
           <Field label="Laboratorij" optional>
             {(p) => <Input {...p} value={laboratory} onChange={(e) => setLaboratory(e.target.value)} />}
           </Field>
