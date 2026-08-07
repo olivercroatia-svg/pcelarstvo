@@ -1,9 +1,10 @@
-import { ArrowRight, CloudOff, Grid2x2 } from 'lucide-react'
+import { ArrowRight, ChevronRight, ClipboardCheck, CloudOff, Grid2x2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { StatusPill } from '@/components/ui/status'
 import { useAuth } from '@/auth/AuthContext'
 import { useOutbox } from '@/lib/outbox'
-import type { Apiary, Hive } from '@/lib/types'
+import type { Apiary, Hive, ObligationCard } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
 
 interface RecentInspection {
@@ -50,6 +51,7 @@ export function DashboardPage() {
   const { data: apiaryData } = useResource<{ apiaries: Apiary[] }>('/apiaries')
   const { data: staleData } = useResource<{ hives: Hive[] }>('/hives?staleDays=14')
   const { data: recentData } = useResource<{ inspections: RecentInspection[] }>('/inspections?limit=8')
+  const { data: obligationData } = useResource<{ obligations: ObligationCard[] }>('/obligations')
 
   if (!current) return null
   const { user, completeness } = current
@@ -57,6 +59,10 @@ export function DashboardPage() {
   const apiaries = apiaryData?.apiaries ?? []
   const colonies = apiaries.reduce((sum, a) => sum + (a.colonyCount ?? 0), 0)
   const needsLook = staleData?.hives.length ?? 0
+  // Only what actually needs attention reaches the dashboard; the full list lives under /obveze.
+  const urgentObligations = (obligationData?.obligations ?? [])
+    .filter((o) => o.level === 'critical' || o.level === 'warning')
+    .slice(0, 3)
 
   return (
     <div className="mx-auto max-w-lg space-y-5">
@@ -138,6 +144,42 @@ export function DashboardPage() {
             <Stat value={apiaries.length} label="pčelinjaka" to="/pcelinjaci" />
             <Stat value={needsLook} label="za pregled" to="/kosnice" />
           </div>
+
+          {/* §23 — the obligations that cannot wait, surfaced where the beekeeper starts. */}
+          {urgentObligations.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Obveze koje traže pažnju</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {urgentObligations.map((item) => (
+                  <Link
+                    key={item.id}
+                    to={`/obveze/${item.id}`}
+                    className="flex items-center gap-2 rounded-lg border border-border p-2.5 hover:bg-accent"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{item.name}</span>
+                      <StatusPill level={item.level} className="mt-1">
+                        {item.statusLabel}
+                      </StatusPill>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  </Link>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* §26 — "Na dashboardu postoji: INSPEKCIJA". One tap from the home screen, because the
+              moment it is needed is the moment someone is standing in the yard asking. */}
+          <Link
+            to="/inspekcija"
+            className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border border-input px-4 text-sm font-semibold uppercase tracking-wide hover:bg-accent"
+          >
+            <ClipboardCheck className="size-5" />
+            Inspekcija
+          </Link>
 
           {recentData && recentData.inspections.length > 0 && (
             <Card>

@@ -1,15 +1,23 @@
 import {
+  Bell,
   Boxes,
+  Bug,
   CalendarCheck,
+  ClipboardCheck,
   CloudOff,
   Crown,
+  Droplet,
+  FolderOpen,
   Grid2x2,
+  HeartPulse,
   Home,
   LogOut,
   Menu,
   Moon,
   Plus,
+  Settings2,
   Sun,
+  Syringe,
   UserCog,
   X,
 } from 'lucide-react'
@@ -21,6 +29,8 @@ import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/auth/AuthContext'
 import { useOutbox } from '@/lib/outbox'
 import { useTheme } from '@/lib/theme'
+import type { AppNotification } from '@/lib/types'
+import { useResource } from '@/lib/useResource'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
@@ -39,6 +49,19 @@ const BOTTOM_NAV: NavItem[] = [
   { to: '/obveze', label: 'Obveze', icon: CalendarCheck },
 ]
 
+/** §22–§27, §53 — the modules that live in the drawer rather than the bottom bar. */
+const DRAWER_LINKS: { to: string; label: string; icon: ComponentType<{ className?: string }> }[] = [
+  { to: '/profil', label: 'Profil i gospodarstvo', icon: UserCog },
+  { to: '/matice', label: 'Matice', icon: Crown },
+  { to: '/kosnice/naljepnice', label: 'QR naljepnice', icon: Boxes },
+  { to: '/varroa', label: 'Kontrola varoe', icon: Bug },
+  { to: '/tretmani', label: 'VMP i tretmani', icon: Syringe },
+  { to: '/zdravlje', label: 'Zdravstveni karton', icon: HeartPulse },
+  { to: '/prihrana', label: 'Prihrana', icon: Droplet },
+  { to: '/dokumenti', label: 'Dokumenti', icon: FolderOpen },
+  { to: '/inspekcija', label: 'Inspekcija', icon: ClipboardCheck },
+]
+
 export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const { current, logout } = useAuth()
@@ -47,6 +70,14 @@ export function AppShell() {
   const confirm = useConfirm()
   const { showError } = useToast()
   const navigate = useNavigate()
+
+  // Only the count is needed, so ask for the shortest list the API will return. Skipped entirely
+  // for a user without a farm — a system administrator, typically — because every farm-scoped
+  // route answers 404 for them and this one fires on every single screen.
+  const { data: notificationData } = useResource<{ notifications: AppNotification[]; unreadCount: number }>(
+    current?.farm ? '/notifications?unread=1&limit=1' : null,
+  )
+  const unread = notificationData?.unreadCount ?? 0
 
   async function handleLogout() {
     const ok = await confirm({
@@ -85,6 +116,19 @@ export function AppShell() {
             {pending.length > 0 && <span className="tabular">{pending.length}</span>}
           </NavLink>
         )}
+        {/* §53 — the badge is the only place the notification centre announces itself. */}
+        <NavLink
+          to="/obavijesti"
+          aria-label={unread > 0 ? `Obavijesti, ${unread} nepročitanih` : 'Obavijesti'}
+          className="relative rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <Bell className="size-5" />
+          {unread > 0 && (
+            <span className="tabular absolute right-0.5 top-0.5 flex min-w-4 items-center justify-center rounded-full bg-critical px-1 text-[10px] font-semibold leading-4 text-white">
+              {unread > 9 ? '9+' : unread}
+            </span>
+          )}
+        </NavLink>
         <button
           type="button"
           onClick={toggleTheme}
@@ -181,31 +225,29 @@ export function AppShell() {
             </div>
 
             <nav className="flex-1 overflow-y-auto p-2">
-              <NavLink
-                to="/profil"
-                onClick={() => setMenuOpen(false)}
-                className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
-              >
-                <UserCog className="size-4" />
-                Profil i gospodarstvo
-              </NavLink>
-              <NavLink
-                to="/matice"
-                onClick={() => setMenuOpen(false)}
-                className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
-              >
-                <Crown className="size-4" />
-                Matice
-              </NavLink>
-              <NavLink
-                to="/kosnice/naljepnice"
-                onClick={() => setMenuOpen(false)}
-                className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
-              >
-                <Boxes className="size-4" />
-                QR naljepnice
-              </NavLink>
-              {/* Etapa 2+ adds the rest of the drawer: dokumenti, skladište, prodaja, izvještaji. */}
+              {DRAWER_LINKS.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
+                >
+                  <Icon className="size-4" />
+                  {label}
+                </NavLink>
+              ))}
+              {/* §54 — only system administrators; the server enforces it regardless. */}
+              {current?.user.isAdmin && (
+                <NavLink
+                  to="/admin/obveze"
+                  onClick={() => setMenuOpen(false)}
+                  className="mt-1 flex min-h-11 items-center gap-3 rounded-lg border-t border-border px-3 pt-2 text-sm hover:bg-accent"
+                >
+                  <Settings2 className="size-4" />
+                  Administracija propisa
+                </NavLink>
+              )}
+              {/* Etapa 3+ adds the rest of the drawer: skladište, prodaja, izvještaji. */}
             </nav>
 
             <div className="border-t border-border p-2">

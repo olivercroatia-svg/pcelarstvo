@@ -1,4 +1,4 @@
-import { ArrowLeft, ClipboardPlus, Crown, QrCode as QrIcon, RotateCcw, Skull } from 'lucide-react'
+import { ArrowLeft, ClipboardPlus, Crown, HeartPulse, QrCode as QrIcon, RotateCcw, Skull, Syringe } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { hiveScanUrl } from '@/components/QrCode'
@@ -152,6 +152,24 @@ export function HiveDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* §15/§17 — this hive's health record and the treatments that covered it. */}
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          to={`/zdravlje?kosnica=${hive.id}`}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-medium hover:bg-accent"
+        >
+          <HeartPulse className="size-4 text-primary" />
+          Zdravlje
+        </Link>
+        <Link
+          to={`/tretmani?kosnica=${hive.id}`}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-medium hover:bg-accent"
+        >
+          <Syringe className="size-4 text-primary" />
+          Tretmani
+        </Link>
+      </div>
 
       <Card>
         <CardHeader>

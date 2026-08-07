@@ -1,4 +1,4 @@
-import { CloudOff, Layers, Play, QrCode, RefreshCw, Trash2 } from 'lucide-react'
+import { Bug, CloudOff, Droplet, HeartPulse, Layers, Play, QrCode, RefreshCw, Syringe, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -51,6 +51,30 @@ export function EntryPage() {
           <span className="block text-sm text-muted-foreground">Isti zapis na više košnica</span>
         </span>
       </Link>
+
+      {/* §12 — the other things recorded in the field, including everything a worker may enter. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Ostali unosi</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-2">
+          {[
+            { to: '/varroa/nova', label: 'Kontrola varoe', icon: Bug },
+            { to: '/tretmani/novi', label: 'Tretman VMP', icon: Syringe },
+            { to: '/prihrana', label: 'Prihrana', icon: Droplet },
+            { to: '/zdravlje', label: 'Zdravstveni zapis', icon: HeartPulse },
+          ].map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border border-border px-2 text-center text-xs font-medium hover:bg-accent"
+            >
+              <Icon className="size-5 text-primary" />
+              {label}
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
 
       {data && data.apiaries.length > 0 && (
         <Card>

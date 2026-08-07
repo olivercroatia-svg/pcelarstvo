@@ -1,4 +1,4 @@
-import { ArrowLeft, Boxes, Check, Pencil, Play, Ruler, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, Boxes, Bug, Check, Pencil, Play, Ruler, Syringe, TriangleAlert } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { LocationPicker } from '@/components/lazy'
 import { Button } from '@/components/ui/button'
@@ -147,6 +147,24 @@ export function ApiaryDetailPage() {
         >
           <Boxes className="size-4" />
           Košnice
+        </Link>
+      </div>
+
+      {/* §16/§17 — the two registers kept per apiary rather than per hive. */}
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          to={`/varroa?pcelinjak=${apiary.id}`}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-medium hover:bg-accent"
+        >
+          <Bug className="size-4 text-primary" />
+          Varoa
+        </Link>
+        <Link
+          to={`/tretmani?pcelinjak=${apiary.id}`}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-medium hover:bg-accent"
+        >
+          <Syringe className="size-4 text-primary" />
+          Tretmani
         </Link>
       </div>
 
