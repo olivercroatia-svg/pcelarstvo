@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 
-export type OutboxKind = 'inspection' | 'inspection_batch'
+export type OutboxKind = 'inspection' | 'inspection_batch' | 'feeding'
 
 export interface OutboxItem {
   /** The client-generated UUID that also becomes the record's primary key on the server. */
