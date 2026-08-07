@@ -5,9 +5,15 @@ import helmet from 'helmet'
 import { pool, testConnection } from './db.js'
 import { env } from './env.js'
 import { errorHandler } from './middleware/error.js'
-import { attachUser } from './middleware/auth.js'
+import { attachUser, requireAuth } from './middleware/auth.js'
+import { apiariesRouter } from './routes/apiaries.js'
 import { authRouter } from './routes/auth.js'
+import { hivesRouter } from './routes/hives.js'
+import { inspectionsRouter } from './routes/inspections.js'
 import { meRouter } from './routes/me.js'
+import { photosRouter } from './routes/photos.js'
+import { queensRouter } from './routes/queens.js'
+import { visitsRouter } from './routes/visits.js'
 
 const app = express()
 const HOST = '127.0.0.1' // CRITICAL: never 0.0.0.0 in production — Nginx is the only entry
@@ -48,6 +54,15 @@ app.get('/api/health', async (_req: Request, res: Response) => {
 
 app.use('/api/auth', authRouter)
 app.use('/api/me', meRouter)
+
+// Farm-scoped modules. requireAuth first so an expired session gets a plain 401 rather than
+// "you have no farm"; each router then adds requireFarm itself.
+app.use('/api/apiaries', requireAuth, apiariesRouter)
+app.use('/api/hives', requireAuth, hivesRouter)
+app.use('/api/queens', requireAuth, queensRouter)
+app.use('/api/inspections', requireAuth, inspectionsRouter)
+app.use('/api/visits', requireAuth, visitsRouter)
+app.use('/api/photos', requireAuth, photosRouter)
 
 app.use('/api', (_req: Request, res: Response) => {
   res.status(404).json({ error: 'Ruta ne postoji' })
