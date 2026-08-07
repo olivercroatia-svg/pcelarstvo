@@ -7,12 +7,15 @@ import {
   Layers,
   Play,
   QrCode,
+  Receipt,
   RefreshCw,
+  ShoppingCart,
   Syringe,
   Trash2,
   Warehouse,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useConfirm } from '@/components/ui/confirm'
@@ -27,7 +30,9 @@ import { useResource } from '@/lib/useResource'
 export function EntryPage() {
   const { data } = useResource<{ apiaries: Apiary[] }>('/apiaries')
   const { pending, online, syncing, flush, discard } = useOutbox()
+  const { current } = useAuth()
   const confirm = useConfirm()
+  const isOwner = current?.role === 'owner'
 
   async function drop(id: string, label: string) {
     const ok = await confirm({
@@ -78,6 +83,14 @@ export function EntryPage() {
             { to: '/zdravlje', label: 'Zdravstveni zapis', icon: HeartPulse },
             { to: '/vrcanja/novo', label: 'Vrcanje', icon: Droplets },
             { to: '/skladiste', label: 'Skladište', icon: Warehouse },
+            // §4 — a worker records work, not money. These two would answer 403 for them, so they
+            // are not offered; the rest of the grid is unchanged for both roles.
+            ...(isOwner
+              ? [
+                  { to: '/prodaja/nova', label: 'Prodaja', icon: ShoppingCart },
+                  { to: '/troskovi', label: 'Trošak', icon: Receipt },
+                ]
+              : []),
           ].map(({ to, label, icon: Icon }) => (
             <Link
               key={to}

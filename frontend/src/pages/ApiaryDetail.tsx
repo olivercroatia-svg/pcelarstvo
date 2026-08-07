@@ -1,6 +1,7 @@
 import { ArrowLeft, Boxes, Bug, Check, Pencil, Play, Ruler, Syringe, TriangleAlert } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { LocationPicker } from '@/components/lazy'
+import { Weather } from '@/components/Weather'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useConfirm } from '@/components/ui/confirm'
@@ -167,6 +168,9 @@ export function ApiaryDetailPage() {
           Tretmani
         </Link>
       </div>
+
+      {/* §47 — renders nothing when the apiary has no GPS position or Open-Meteo is unreachable. */}
+      <Weather apiaryId={apiary.id} />
 
       {apiary.latitude !== null && apiary.longitude !== null && (
         <Card>

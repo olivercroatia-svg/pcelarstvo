@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusPill } from '@/components/ui/status'
 import { useAuth } from '@/auth/AuthContext'
-import { formatNumber, plural } from '@/lib/format'
+import { formatEur, formatNumber, plural } from '@/lib/format'
 import { useOutbox } from '@/lib/outbox'
-import type { Apiary, Hive, HoneyBatch, ObligationCard } from '@/lib/types'
+import type { Apiary, Economics, Hive, HoneyBatch, ObligationCard } from '@/lib/types'
 import { useResource } from '@/lib/useResource'
 
 interface RecentInspection {
@@ -56,6 +56,9 @@ export function DashboardPage() {
   const { data: batchData } = useResource<{ batches: HoneyBatch[] }>(
     `/batches?year=${new Date().getFullYear()}`,
   )
+  // §40 × §4 — not requested at all for a worker. Asking and swallowing the 403 would work, but it
+  // would also put a forbidden request in the network log of every home-screen load.
+  const { data: economics } = useResource<Economics>(current?.role === 'owner' ? '/economics' : null)
 
   if (!current) return null
   const { user, completeness } = current
@@ -210,6 +213,47 @@ export function DashboardPage() {
             </Card>
           )}
 
+          {/* §40 — owner only, and only once there is something to show. A worker never sees this
+              card because the endpoint behind it answers 403 for them (§4). */}
+          {economics && economics.totals.revenue + economics.totals.expenses > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Ekonomika {economics.year}.</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-secondary/60 p-2">
+                    <p className="tabular font-semibold">{formatEur(economics.totals.revenue, 0)}</p>
+                    <p className="text-xs text-muted-foreground">prihod</p>
+                  </div>
+                  <div className="rounded-lg bg-secondary/60 p-2">
+                    <p className="tabular font-semibold">{formatEur(economics.totals.expenses, 0)}</p>
+                    <p className="text-xs text-muted-foreground">troškovi</p>
+                  </div>
+                  <div className="rounded-lg bg-secondary/60 p-2">
+                    <p
+                      className={`tabular font-semibold ${economics.totals.profit >= 0 ? 'text-ok' : 'text-critical'}`}
+                    >
+                      {formatEur(economics.totals.profit, 0)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">dobit</p>
+                  </div>
+                </div>
+                <Link
+                  to="/ekonomika"
+                  className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 text-sm hover:bg-accent"
+                >
+                  <span className="min-w-0 flex-1">
+                    {economics.totals.pricePerKg === null
+                      ? 'Pogledaj po pčelinjaku'
+                      : `Prosječna cijena ${formatEur(economics.totals.pricePerKg)}/kg`}
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+
           {/* §26 — "Na dashboardu postoji: INSPEKCIJA". One tap from the home screen, because the
               moment it is needed is the moment someone is standing in the yard asking. */}
           <Link
@@ -222,8 +266,12 @@ export function DashboardPage() {
 
           {recentData && recentData.inspections.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Dnevnik</CardTitle>
+              <CardHeader className="flex-row items-baseline justify-between">
+                <CardTitle className="text-base">Zadnji pregledi</CardTitle>
+                {/* §48 — the full timeline is its own screen now; this card stays a short glance. */}
+                <Link to="/dnevnik" className="text-xs font-medium text-primary hover:underline">
+                  Cijeli dnevnik
+                </Link>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">

@@ -1,4 +1,15 @@
-import { ArrowLeft, Boxes, Crown, FlaskConical, Grid2x2, Package, Printer, Search, Syringe } from 'lucide-react'
+import {
+  ArrowLeft,
+  Boxes,
+  Crown,
+  FlaskConical,
+  Grid2x2,
+  Package,
+  Printer,
+  Search,
+  ShoppingCart,
+  Syringe,
+} from 'lucide-react'
 import { useState, type ComponentType } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { WithdrawalWarning } from '@/components/WithdrawalWarning'
@@ -68,7 +79,7 @@ export function TraceabilityPage() {
   if (error) return <ErrorState message={error} />
   if (!data) return null
 
-  const { batch, harvest, apiary, hives, treatments, labTests, packaging } = data
+  const { batch, harvest, apiary, hives, treatments, labTests, packaging, sales } = data
   const jars = packaging.reduce((sum, p) => sum + p.jarCount, 0)
 
   return (
@@ -101,6 +112,22 @@ export function TraceabilityPage() {
           {batch.moisturePercent !== null && ` · vlaga ${formatNumber(batch.moisturePercent, 1)} %`}
         </p>
       </Link>
+
+      {/* §30's last link, and the first one a food-safety inspector asks about: one step forward
+          from this LOT. Empty for a worker, whose response never carries the sales (§4). */}
+      {sales.length > 0 && (
+        <ChainLink icon={ShoppingCart} title="Kupac">
+          {sales.map((s) => (
+            <Link key={s.id} to={`/prodaja/${s.saleId}`} className="block rounded-lg p-1.5 text-sm hover:bg-accent">
+              <span className="font-medium">{s.customerName ?? 'Prodaja bez kupca'}</span>
+              <span className="block text-xs text-muted-foreground">
+                {formatDate(s.soldOn)} · {formatNumber(s.quantity)} {s.unit}
+                {s.honeyKg > 0 ? ` · ${formatNumber(s.honeyKg, 3)} kg` : ''}
+              </span>
+            </Link>
+          ))}
+        </ChainLink>
+      )}
 
       <ChainLink icon={Package} title="Staklenka" empty={packaging.length === 0 ? 'Još nije pakirano' : null}>
         {packaging.map((p) => (

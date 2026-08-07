@@ -118,6 +118,15 @@ export function PackagingDetailPage() {
             <Row label="Proizvod" value={run.productName} />
             <Row label="Pakirano" value={formatDate(run.packagedOn)} />
             <Row label="Količina" value={`${formatNumber(run.totalKg)} kg`} />
+            {/* §37 — a run is a stock of jars, not only a record that they were filled. */}
+            <Row
+              label="Prodano"
+              value={run.soldCount > 0 ? `${run.soldCount} od ${run.jarCount}` : 'nijedna staklenka'}
+            />
+            <Row
+              label="Na skladištu"
+              value={`${run.remainingCount} ${run.remainingCount === 1 ? 'staklenka' : 'staklenki'} · ${formatNumber(run.remainingKg)} kg`}
+            />
             <Row label="Najbolje upotrijebiti do" value={run.bestBefore ? formatDate(run.bestBefore) : null} />
             {run.isNational && (
               <Row
@@ -231,12 +240,21 @@ export function PackagingDetailPage() {
         </CardContent>
       </Card>
 
-      {isOwner && (
-        <Button variant="outline" className="w-full text-destructive" onClick={remove}>
-          <Trash2 />
-          Obriši pakiranje
-        </Button>
-      )}
+      {isOwner &&
+        // Hidden once a jar has been sold. The server refuses it anyway (409) — deleting the run
+        // would return honey to the LOT that is already in a customer's kitchen — so offering the
+        // button would only be offering a dead end.
+        (run.soldCount > 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Pakiranje se ne može obrisati jer je iz njega prodano {run.soldCount}{' '}
+            {run.soldCount === 1 ? 'staklenka' : 'staklenki'}. Prvo obrišite te prodaje.
+          </p>
+        ) : (
+          <Button variant="outline" className="w-full text-destructive" onClick={remove}>
+            <Trash2 />
+            Obriši pakiranje
+          </Button>
+        ))}
     </div>
   )
 }

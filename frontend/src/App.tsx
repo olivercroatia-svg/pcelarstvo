@@ -3,17 +3,23 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
 import { BrandMark } from '@/components/BrandMark'
 import { useAuth } from '@/auth/AuthContext'
+import { AdminCommercePage } from '@/pages/AdminCommerce'
 import { AdminObligationsPage } from '@/pages/AdminObligations'
 import { AdminProductionPage } from '@/pages/AdminProduction'
+import { AnalyticsPage } from '@/pages/Analytics'
 import { ApiariesPage } from '@/pages/Apiaries'
 import { ApiaryDetailPage } from '@/pages/ApiaryDetail'
 import { ApiaryFormPage } from '@/pages/ApiaryForm'
 import { BatchDetailPage } from '@/pages/BatchDetail'
 import { BatchEntryPage } from '@/pages/BatchEntry'
 import { BatchesPage } from '@/pages/Batches'
+import { CustomerDetailPage } from '@/pages/CustomerDetail'
+import { CustomersPage } from '@/pages/Customers'
 import { DashboardPage } from '@/pages/Dashboard'
 import { DocumentsPage } from '@/pages/Documents'
+import { EconomicsPage } from '@/pages/Economics'
 import { EntryPage } from '@/pages/Entry'
+import { ExpensesPage } from '@/pages/Expenses'
 import { FeedingPage } from '@/pages/Feeding'
 import { HarvestDetailPage } from '@/pages/HarvestDetail'
 import { HarvestNewPage } from '@/pages/HarvestNew'
@@ -35,6 +41,7 @@ import { ObligationDetailPage } from '@/pages/ObligationDetail'
 import { ObligationsPage } from '@/pages/Obligations'
 import { PackagingDetailPage } from '@/pages/PackagingDetail'
 import { PackagingNewPage } from '@/pages/PackagingNew'
+import { PasturesPage } from '@/pages/Pastures'
 import { ProductsPage } from '@/pages/Products'
 // PlaceholderPage is gone from the routes now that /obveze is real; the file itself is left in
 // place for the modules still to come.
@@ -42,6 +49,16 @@ import { ProfilePage } from '@/pages/Profile'
 import { QueensPage } from '@/pages/Queens'
 import { ReadinessPage } from '@/pages/Readiness'
 import { RegisterPage } from '@/pages/Register'
+import { RelocationDetailPage } from '@/pages/RelocationDetail'
+import { RelocationsPage } from '@/pages/Relocations'
+import { SaleDetailPage } from '@/pages/SaleDetail'
+import { SaleNewPage } from '@/pages/SaleNew'
+import { SalesPage } from '@/pages/Sales'
+import { SearchPage } from '@/pages/Search'
+import { SeasonPage } from '@/pages/Season'
+import { SubsidiesPage } from '@/pages/Subsidies'
+import { SubsidyDetailPage } from '@/pages/SubsidyDetail'
+import { TimelinePage } from '@/pages/Timeline'
 import { TraceabilityPage } from '@/pages/Traceability'
 import { TreatmentDetailPage } from '@/pages/TreatmentDetail'
 import { TreatmentNewPage } from '@/pages/TreatmentNew'
@@ -66,6 +83,11 @@ const DeclarationPage = lazy(() =>
 // §35 — reached by strangers with a phone camera, never from inside the application. Kept out of
 // the main chunk so a customer scanning a jar downloads a page, not a beekeeping app.
 const PublicJarPage = lazy(() => import('@/pages/PublicJar').then((m) => ({ default: m.PublicJarPage })))
+// §49 — fourteen sections and a print stylesheet, opened once a year. Same reasoning as the forms
+// and the declaration: it has no business in the bundle a beekeeper downloads on a hillside.
+const AnnualReportPage = lazy(() =>
+  import('@/pages/AnnualReport').then((m) => ({ default: m.AnnualReportPage })),
+)
 
 function BootSplash() {
   return (
@@ -171,9 +193,34 @@ export function App() {
           <Route path="/sljedivost" element={<TraceabilityPage />} />
           <Route path="/sljedivost/:key" element={<TraceabilityPage />} />
 
+          {/* Sezona i teren (§19–§21). Not financial, so a worker reaches these too. */}
+          <Route path="/kalendar" element={<SeasonPage />} />
+          <Route path="/pase" element={<PasturesPage />} />
+          <Route path="/selidbe" element={<RelocationsPage />} />
+          <Route path="/selidbe/:id" element={<RelocationDetailPage />} />
+
+          {/* Čitanje kroz sve module (§41–§43, §48, §49, §52). */}
+          <Route path="/analitika" element={<AnalyticsPage />} />
+          <Route path="/dnevnik" element={<TimelinePage />} />
+          <Route path="/trazi" element={<SearchPage />} />
+          <Route path="/izvjestaj" element={<LazyRoute><AnnualReportPage /></LazyRoute>} />
+
+          {/* Komercijala (§37–§40, §50). The API answers 403 for a worker; these routes exist for
+              everyone because a hidden route is not an access control and the server is. */}
+          <Route path="/prodaja" element={<SalesPage />} />
+          <Route path="/prodaja/nova" element={<SaleNewPage />} />
+          <Route path="/prodaja/:id" element={<SaleDetailPage />} />
+          <Route path="/kupci" element={<CustomersPage />} />
+          <Route path="/kupci/:id" element={<CustomerDetailPage />} />
+          <Route path="/troskovi" element={<ExpensesPage />} />
+          <Route path="/ekonomika" element={<EconomicsPage />} />
+          <Route path="/potpore" element={<SubsidiesPage />} />
+          <Route path="/potpore/:id" element={<SubsidyDetailPage />} />
+
           {/* §54 — the admin routes are guarded on the server; this only hides the links. */}
           <Route path="/admin/obveze" element={<AdminObligationsPage />} />
           <Route path="/admin/proizvodnja" element={<AdminProductionPage />} />
+          <Route path="/admin/sezona" element={<AdminCommercePage />} />
         </Route>
       </Route>
 

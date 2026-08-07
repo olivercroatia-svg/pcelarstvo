@@ -22,6 +22,9 @@ const CATEGORIES: { key: InventoryCategory; label: string }[] = [
 
 interface InventoryResponse {
   honey: HoneyStock[]
+  /** §37 — filled jars that have not been sold. Derived like the honey above, never editable. */
+  jars: { honeyType: string; jars: number; kg: number; runs: number }[]
+  honeyTotalKg: number
   items: InventoryItem[]
   lowCount: number
   expiredCount: number
@@ -46,8 +49,10 @@ export function InventoryPage() {
   if (error) return <ErrorState message={error} />
 
   const honey = data?.honey ?? []
+  const jars = data?.jars ?? []
   const items = data?.items ?? []
   const honeyTotal = honey.reduce((sum, h) => sum + h.availableKg, 0)
+  const jarsTotal = jars.reduce((sum, j) => sum + j.kg, 0)
 
   async function addItem(event: React.FormEvent) {
     event.preventDefault()
@@ -103,12 +108,29 @@ export function InventoryPage() {
 
       <Card>
         <CardHeader className="flex-row items-baseline justify-between">
-          <CardTitle className="text-base">Med</CardTitle>
+          <CardTitle className="text-base">Med — ukupno</CardTitle>
+          <span className="tabular text-lg font-semibold">{formatNumber(data?.honeyTotalKg)} kg</span>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-3 text-center">
+          <div className="rounded-lg bg-secondary/60 p-3">
+            <p className="text-xs text-muted-foreground">U posudama</p>
+            <p className="tabular font-semibold">{formatNumber(honeyTotal)} kg</p>
+          </div>
+          <div className="rounded-lg bg-secondary/60 p-3">
+            <p className="text-xs text-muted-foreground">U staklenkama</p>
+            <p className="tabular font-semibold">{formatNumber(jarsTotal)} kg</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-baseline justify-between">
+          <CardTitle className="text-base">Med u posudama</CardTitle>
           <span className="tabular text-lg font-semibold">{formatNumber(honeyTotal)} kg</span>
         </CardHeader>
         <CardContent>
           {honey.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nema meda na skladištu.</p>
+            <p className="text-sm text-muted-foreground">Nema meda u posudama.</p>
           ) : (
             <ul>
               {honey.map((h) => (
@@ -136,6 +158,40 @@ export function InventoryPage() {
           </p>
         </CardContent>
       </Card>
+
+      {/* §33 × §37 — jars are stock too. Without this the warehouse looked like 54 kg had left the
+          building the moment it was packed, and the beekeeper stopped trusting the total. */}
+      {jars.length > 0 && (
+        <Card>
+          <CardHeader className="flex-row items-baseline justify-between">
+            <CardTitle className="text-base">Med u staklenkama</CardTitle>
+            <span className="tabular text-lg font-semibold">{formatNumber(jarsTotal)} kg</span>
+          </CardHeader>
+          <CardContent>
+            <ul>
+              {jars.map((j) => (
+                <li key={j.honeyType}>
+                  <Link
+                    to={`/serije?vrsta=${encodeURIComponent(j.honeyType)}`}
+                    className="-mx-2 flex min-h-11 items-center justify-between gap-2 rounded-lg px-2 text-sm hover:bg-accent"
+                  >
+                    <span className="min-w-0 truncate">
+                      {j.honeyType}
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        {j.jars} {plural(j.jars, 'staklenka', 'staklenke', 'staklenki')}
+                      </span>
+                    </span>
+                    <span className="tabular shrink-0 font-medium">{formatNumber(j.kg)} kg</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Napunjene staklenke koje još nisu prodane. Broj pada sam pri unosu prodaje.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {adding ? (
         <Card>

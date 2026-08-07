@@ -1,28 +1,40 @@
 import {
+  BarChart3,
   Bell,
   Boxes,
   Bug,
   CalendarCheck,
+  CalendarDays,
   ClipboardCheck,
   CloudOff,
   Crown,
   Droplet,
   Droplets,
+  FileText,
+  Flower2,
   FolderOpen,
   GitBranch,
   Grid2x2,
+  HandCoins,
   HeartPulse,
   Home,
   Layers,
   LogOut,
   Menu,
   Moon,
+  NotebookPen,
   Plus,
+  Receipt,
+  Search,
   Settings2,
+  ShoppingCart,
   Sun,
   Syringe,
   Tag,
+  TrendingUp,
+  Truck,
   UserCog,
+  Users,
   Warehouse,
   X,
 } from 'lucide-react'
@@ -89,14 +101,43 @@ const DRAWER_GROUPS: {
     ],
   },
   {
+    title: 'Sezona i teren',
+    links: [
+      { to: '/kalendar', label: 'Sezonski kalendar', icon: CalendarDays },
+      { to: '/pase', label: 'Paše', icon: Flower2 },
+      { to: '/selidbe', label: 'Selidbe', icon: Truck },
+      { to: '/dnevnik', label: 'Dnevnik', icon: NotebookPen },
+      { to: '/analitika', label: 'Analitika', icon: BarChart3 },
+    ],
+  },
+  {
     title: 'Zakon i papiri',
     links: [
       { to: '/dokumenti', label: 'Dokumenti', icon: FolderOpen },
       { to: '/inspekcija', label: 'Inspekcija', icon: ClipboardCheck },
+      { to: '/izvjestaj', label: 'Godišnji izvještaj', icon: FileText },
       { to: '/profil', label: 'Profil i gospodarstvo', icon: UserCog },
     ],
   },
 ]
+
+/**
+ * §4 — the money. Shown only to an owner.
+ *
+ * Hiding the links is a courtesy, not the control: every one of these routes answers 403 for a
+ * worker before a byte of data leaves the server. What this prevents is a worker tapping "Prodaja"
+ * and being told off for it.
+ */
+const OWNER_GROUP: (typeof DRAWER_GROUPS)[number] = {
+  title: 'Komercijala',
+  links: [
+    { to: '/prodaja', label: 'Prodaja', icon: ShoppingCart },
+    { to: '/kupci', label: 'Kupci', icon: Users },
+    { to: '/troskovi', label: 'Troškovi', icon: Receipt },
+    { to: '/ekonomika', label: 'Ekonomika', icon: TrendingUp },
+    { to: '/potpore', label: 'Potpore', icon: HandCoins },
+  ],
+}
 
 export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -152,6 +193,15 @@ export function AppShell() {
             {pending.length > 0 && <span className="tabular">{pending.length}</span>}
           </NavLink>
         )}
+        {/* §52 — the global search. In the header rather than the drawer because it is the thing
+            most often reached for, and because a search two taps deep does not get used. */}
+        <NavLink
+          to="/trazi"
+          aria-label="Traži"
+          className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <Search className="size-5" />
+        </NavLink>
         {/* §53 — the badge is the only place the notification centre announces itself. */}
         <NavLink
           to="/obavijesti"
@@ -261,7 +311,7 @@ export function AppShell() {
             </div>
 
             <nav className="flex-1 overflow-y-auto p-2">
-              {DRAWER_GROUPS.map((group) => (
+              {[...DRAWER_GROUPS, ...(current?.role === 'owner' ? [OWNER_GROUP] : [])].map((group) => (
                 <div key={group.title} className="mb-2">
                   <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {group.title}
@@ -298,9 +348,16 @@ export function AppShell() {
                     <Settings2 className="size-4" />
                     Proizvodnja — propisi
                   </NavLink>
+                  <NavLink
+                    to="/admin/sezona"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-accent"
+                  >
+                    <Settings2 className="size-4" />
+                    Sezona i potpore
+                  </NavLink>
                 </div>
               )}
-              {/* Etapa 4 adds the rest: prodaja, kupci, troškovi, izvještaji. */}
             </nav>
 
             <div className="border-t border-border p-2">
