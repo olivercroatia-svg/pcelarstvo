@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/broadsheet-5418279a-43b8-43ea-a57a-f6f524a23db7/styles.css">
+<script src="_ds/broadsheet-5418279a-43b8-43ea-a57a-f6f524a23db7/_ds_bundle.js"></script>
+<style>
+body{margin:0;background:var(--color-bg)}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font-family:var(--font-heading);font-weight:600;font-size:14px;color:var(--color-text)}
+.dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font-size:12.5px;color:var(--color-neutral-700);max-width:402px}
+.dv-opt:target .dv-oid{background:var(--color-accent);color:#fff}
+.dv-next{margin:26px 0 0;font-size:12.5px;color:var(--color-neutral-700)}
+</style>
+</helmet>
+<section class="dv-turn" id="t3">
+  <div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Razrada — forma novog vrcanja i karton matice (oba interaktivna)</span></div>
+  <div class="dv-opts">
+
+    <div class="dv-opt" id="3a">
+      <div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a><span><strong>Novo vrcanje</strong> — paša mijenja LOT oznaku, količina i vlaga na velikim kontrolama, „Stvori LOT" sprema</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)">
+          <div style="flex:1;overflow:auto;padding:64px 20px 24px">
+            <header style="margin-bottom:22px">
+              <a style="cursor:pointer;font-size:13px">← Proizvodnja</a>
+              <h2 style="font-size:30px;margin:10px 0 0">Novo vrcanje</h2>
+              <div class="text-muted" style="font-size:12.5px;margin-top:2px">7. 8. 2026. · datum automatski</div>
+            </header>
+            <div style="display:flex;flex-direction:column;gap:22px">
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Pčelinjak</div>
+                <div class="seg" style="display:flex;width:100%">
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="vrc-pc" defaultChecked="{{ true }}"><span>Baćina</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="vrc-pc"><span>Vrgorac</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="vrc-pc"><span>Slavonija</span></label>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Paša</div>
+                <div style="display:flex;width:100%;border:1px solid var(--color-divider);border-radius:var(--radius-md);overflow:hidden">
+                  <sc-for list="{{ pastures }}" as="opt" hint-placeholder-count="3">
+                    <button onClick="{{ opt.on }}" style="{{ opt.style }}">{{ opt.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Košnice</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                  <span style="font-size:15px">B012–B047 · 36 košnica</span>
+                  <a class="btn btn-ghost" style="min-height:44px">Promijeni</a>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Količina</div>
+                <div style="display:flex;align-items:center;gap:20px">
+                  <button class="btn btn-secondary" onClick="{{ kgDn }}" style="width:64px;height:52px;font-size:24px">−</button>
+                  <div style="flex:1;text-align:center;font-family:var(--font-heading);font-weight:600;font-size:38px;line-height:1">{{ kg }} <span style="font-size:17px;font-weight:400">kg</span></div>
+                  <button class="btn btn-secondary" onClick="{{ kgUp }}" style="width:64px;height:52px;font-size:24px">+</button>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Vlaga</div>
+                <div style="display:flex;align-items:center;gap:20px">
+                  <button class="btn btn-secondary" onClick="{{ vlDn }}" style="width:64px;height:52px;font-size:24px">−</button>
+                  <div style="flex:1;text-align:center;font-family:var(--font-heading);font-weight:600;font-size:38px;line-height:1">{{ vlText }} <span style="font-size:17px;font-weight:400">%</span></div>
+                  <button class="btn btn-secondary" onClick="{{ vlUp }}" style="width:64px;height:52px;font-size:24px">+</button>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Posude</div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:8px 16px;font-size:14px">
+                  <span>INOX 1</span><span>120 kg</span>
+                  <span>INOX 2</span><span>166 kg</span>
+                </div>
+                <a class="btn btn-ghost" style="min-height:44px;margin-left:-5px">Dodaj posudu →</a>
+              </div>
+              <div style="border-top:1px solid var(--color-divider);padding-top:16px">
+                <div class="text-muted" style="font-size:12.5px">LOT serije — dodjeljuje se automatski</div>
+                <div style="font-family:var(--font-heading);font-weight:600;font-size:22px;margin-top:2px">{{ lotCode }}</div>
+              </div>
+              <div style="padding-bottom:4px">
+                <sc-if value="{{ harvestNot }}" hint-placeholder-val="{{ true }}">
+                  <button class="btn btn-primary btn-block" onClick="{{ createHarvest }}" style="min-height:54px;font-size:16px">Stvori LOT i spremi vrcanje</button>
+                </sc-if>
+                <sc-if value="{{ harvestSaved }}" hint-placeholder-val="{{ false }}">
+                  <div style="text-align:center">
+                    <div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px;color:var(--color-accent-700)">Vrcanje spremljeno — {{ lotCode }} · {{ kg }} kg · {{ vlText }} %</div>
+                    <div class="text-muted" style="font-size:12.5px;margin-top:4px">Serija dodana u skladište i lanac sljedivosti</div>
+                    <button class="btn btn-ghost" onClick="{{ resetHarvest }}" style="min-height:44px;margin-top:6px">Novo vrcanje →</button>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="3b">
+      <div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a><span><strong>Karton matice</strong> — status (mijenja boju), ocjene na točkicama, podrijetlo i povijest</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)">
+          <div style="flex:1;overflow:auto;padding:64px 20px 24px">
+            <header style="margin-bottom:22px">
+              <a style="cursor:pointer;font-size:13px">← Matice</a>
+              <div class="text-muted" style="font-size:12px;letter-spacing:0.04em;margin-top:10px">Košnica B024 · Baćina</div>
+              <h2 style="font-size:30px;margin:4px 0 0">Matica M-26-014</h2>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px">
+                <span style="width:14px;height:14px;border-radius:50%;background:#fff;border:1.5px solid var(--color-neutral-400)"></span>
+                <span class="text-muted">Bijela oznaka · 2026. — boju predlaže aplikacija prema godini</span>
+              </div>
+            </header>
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Status</div>
+                <div style="display:flex;width:100%;border:1px solid var(--color-divider);border-radius:var(--radius-md);overflow:hidden">
+                  <sc-for list="{{ statusOpts }}" as="opt" hint-placeholder-count="3">
+                    <button onClick="{{ opt.on }}" style="{{ opt.style }}">{{ opt.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:13.5px">
+                <span class="text-muted">Podrijetlo</span><span>Uzgajivač Kezić · Carnica, linija F1</span>
+                <span class="text-muted">Uvedena</span><span>12. 5. 2026. · košnica B024</span>
+                <span class="text-muted">Oplodnja</span><span>potvrđena 26. 5. 2026.</span>
+              </div>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:12px">Ocjene</div>
+                <div style="display:flex;flex-direction:column;gap:14px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                    <span style="font-size:14px">Produktivnost</span>
+                    <div style="display:flex;gap:10px"><sc-for list="{{ prodDots }}" as="d" hint-placeholder-count="5"><button onClick="{{ d.on }}" aria-label="Ocjena produktivnosti" style="{{ d.style }}"></button></sc-for></div>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                    <span style="font-size:14px">Mirnoća</span>
+                    <div style="display:flex;gap:10px"><sc-for list="{{ mirDots }}" as="d" hint-placeholder-count="5"><button onClick="{{ d.on }}" aria-label="Ocjena mirnoće" style="{{ d.style }}"></button></sc-for></div>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                    <span style="font-size:14px">Sklonost rojenju</span>
+                    <div style="display:flex;gap:10px"><sc-for list="{{ rojDots }}" as="d" hint-placeholder-count="5"><button onClick="{{ d.on }}" aria-label="Ocjena sklonosti rojenju" style="{{ d.style }}"></button></sc-for></div>
+                  </div>
+                </div>
+              </div>
+              <p style="font-style:italic;font-size:14.5px;line-height:1.5;margin:0;color:var(--color-neutral-800)">Potomstvo linije Kezić F1 ima 17 % veći prosječni prinos od prosjeka pčelinjaka.</p>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:12px">Povijest</div>
+                <div style="display:grid;grid-template-columns:52px 1fr;gap:12px 12px;font-size:14px">
+                  <span class="text-muted" style="font-size:12px;padding-top:2px">6. 8.</span><span>Pregled: jaka zajednica, 9 okvira, viđena</span>
+                  <span class="text-muted" style="font-size:12px;padding-top:2px">26. 5.</span><span>Oplodnja potvrđena, jaja u B024</span>
+                  <span class="text-muted" style="font-size:12px;padding-top:2px">12. 5.</span><span>Uvedena u košnicu B024</span>
+                  <span class="text-muted" style="font-size:12px;padding-top:2px">8. 5.</span><span>Nabavljena od uzgajivača, s certifikatom</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:10px;padding-bottom:4px">
+                <button class="btn btn-secondary" style="flex:1;min-height:48px">Zamijeni maticu</button>
+                <button class="btn btn-secondary" style="flex:1;min-height:48px">Karton košnice</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+  <p class="dv-next">Dalje: „poveži 3a i 3b u prototip <a class="dv-oid" href="#2a">2a</a>" · „dodaj graf varoe kroz godinu" · „napravi ekran skladišta i prodaje"</p>
+</section>
+<section class="dv-turn" id="t2">
+  <div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Cijeli tok — masthead iz <a class="dv-oid" href="#1a">1a</a> + kartice iz <a class="dv-oid" href="#1b">1b</a>, <a class="dv-oid" href="#1c">1c</a> kao „Unos", noćni mod</span></div>
+  <div class="dv-opts">
+    <div class="dv-opt" id="2a">
+      <div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a><span><strong>Radni prototip</strong> — donja navigacija radi; ekrani: Početna, Pčelinjaci, Košnice, Unos, Obveze + Vrcanje/LOT, forma novog vrcanja, karton matice, graf varoe, skladište, prodaja i Inspekcija. Mjesec u zaglavlju pali noćni mod.</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ dark }}" hint-size="402px,874px">
+        <div style="{{ themeVars }}">
+          <div style="flex:1;overflow:auto;padding:64px 20px 16px">
+
+            <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+              <header>
+                <div style="border-top:3px solid var(--color-text)"></div>
+                <div style="display:flex;justify-content:space-between;gap:8px;font-size:10px;letter-spacing:0.07em;text-transform:uppercase;padding:5px 1px"><span>Petak, 7. kolovoza 2026.</span><span>{{ farmName }}</span><span>EPP 03217</span></div>
+                <div style="border-top:1px solid var(--color-text)"></div>
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-top:16px">
+                  <div><h2 style="font-size:27px;margin:0">Dobro jutro, Ivane</h2><div class="text-muted" style="font-size:13px;margin-top:2px">Vaš pčelinjak danas · Ploče, 26 °C</div></div>
+                  <button onClick="{{ toggleDark }}" aria-label="Noćni mod" style="background:none;border:1px solid var(--color-divider);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-text);cursor:pointer;flex:none;padding:0"><svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M216 154A88 88 0 0 1 102 40a88 88 0 1 0 114 114Z"></path><path d="M224 150a8 8 0 0 0-10-4 80 80 0 0 1-104-104 8 8 0 0 0-10-10 96 96 0 1 0 124 124 8 8 0 0 0 0-6Z"></path></svg></button>
+                </div>
+              </header>
+              <div style="margin:22px 0 0">
+                <sc-if value="{{ darkOff }}" hint-placeholder-val="{{ true }}">
+                  <span class="cmyk-num" style="display:block;font-family:var(--font-heading);font-weight:600;font-size:76px;margin-bottom:12px"><span class="paper">128</span><span class="plate plate-c" aria-hidden="true">128</span><span class="plate plate-m" aria-hidden="true">128</span><span class="plate plate-y" aria-hidden="true">128</span></span>
+                </sc-if>
+                <sc-if value="{{ dark }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-family:var(--font-heading);font-weight:600;font-size:76px;line-height:0.9;margin-bottom:12px">128</div>
+                </sc-if>
+                <div style="font-size:14.5px">aktivnih pčelinjih zajednica</div>
+                <div style="display:flex;gap:22px;margin-top:14px">
+                  <div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1">3</div><div class="text-muted" style="font-size:11.5px;margin-top:2px">pčelinjaka</div></div>
+                  <div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1;color:var(--color-accent-2-600)">4</div><div class="text-muted" style="font-size:11.5px;margin-top:2px">obveze u 30 dana</div></div>
+                  <div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px;line-height:1">12</div><div class="text-muted" style="font-size:11.5px;margin-top:2px">za pregled</div></div>
+                </div>
+              </div>
+              <div style="margin:26px 0 0;display:flex;flex-direction:column;gap:12px">
+                <div class="card elev-sm">
+                  <div class="card-kicker" style="color:var(--color-accent-2-700)">Rok 1. prosinca · još {{ deadlineDays }} dana</div>
+                  <div class="card-title">Godišnja dojava proizvodnih pokazatelja</div>
+                  <div><button class="btn btn-secondary" onClick="{{ goObligations }}" style="min-height:44px">Pripremi obrazac</button></div>
+                </div>
+                <div class="card">
+                  <div class="card-kicker" style="color:var(--color-accent-2-700)">Baćina · {{ varroaDays }} dana bez kontrole</div>
+                  <div class="card-title">Kontrola varoe</div>
+                  <div><button class="btn btn-secondary" onClick="{{ goVarroa }}" style="min-height:44px">Unesi kontrolu</button></div>
+                </div>
+                <div class="card">
+                  <div class="card-kicker">Selidba za 6 dana · suncokret</div>
+                  <div class="card-title">Suglasnost za smještaj nije evidentirana</div>
+                  <div><button class="btn btn-secondary" onClick="{{ goApiaries }}" style="min-height:44px">Dodaj suglasnost</button></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 0">
+                <button class="btn btn-secondary" onClick="{{ goInspection }}" style="min-height:48px">Inspekcija</button>
+                <button class="btn btn-secondary" onClick="{{ goHarvest }}" style="min-height:48px">Vrcanja i LOT</button>
+                <button class="btn btn-secondary" onClick="{{ goInventory }}" style="min-height:48px">Skladište</button>
+                <button class="btn btn-secondary" onClick="{{ goSales }}" style="min-height:48px">Prodaja</button>
+              </div>
+              <div style="margin:26px 0 8px">
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:14px">Dnevnik</div>
+                <div style="display:grid;grid-template-columns:52px 1fr;gap:12px 12px;font-size:14px">
+                  <span class="text-muted" style="font-size:12px;padding-top:2px">6. 8.</span><span>Pregledano 26 zajednica, Baćina — 4 s matičnjacima</span>
+                  <span class="text-muted" style="font-size:12px;padding-top:2px">2. 8.</span><span>Tretman protiv varoe, Vrgorac, 38 zajednica</span>
+                  <span class="text-muted" style="font-size:12px;padding-top:2px">28. 7.</span><span>Vrcanje kadulje — 286 kg, <a onClick="{{ goHarvest }}" style="cursor:pointer">LOT KAD-260524-01</a></span>
+                  <span class="text-muted" style="font-size:12px;padding-top:2px">21. 7.</span><span>Dodana medišta, Baćina, košnice B012–B047</span>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isApiaries }}" hint-placeholder-val="{{ false }}">
+              <h2 style="font-size:28px;margin:6px 0 0">Pčelinjaci</h2>
+              <div class="text-muted" style="font-size:13px;margin-top:2px">3 pčelinjaka · 128 zajednica</div>
+              <div style="margin:22px 0 0;display:flex;flex-direction:column;gap:24px">
+                <div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><div style="font-family:var(--font-heading);font-weight:600;font-size:19px">Baćina</div><span class="tag tag-accent">Aktivno</span></div>
+                  <div class="text-muted" style="font-size:12.5px;margin-top:2px">Stacionarni · Baćinska jezera · 54 zajednice · LR</div>
+                  <div style="font-size:12.5px;margin-top:6px;color:var(--color-accent-700)">✓ Evidencija pčelara · ✓ Identifikacijska oznaka · ✓ Suglasnost</div>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><div style="font-family:var(--font-heading);font-weight:600;font-size:19px">Vrgorac</div><span class="tag tag-accent">Aktivno</span></div>
+                  <div class="text-muted" style="font-size:12.5px;margin-top:2px">Seleći · 38 zajednica · paša: kadulja</div>
+                  <div style="font-size:12.5px;margin-top:6px;color:var(--color-accent-700)">✓ Evidencija pčelara · ✓ Identifikacijska oznaka · ✓ Suglasnost</div>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><div style="font-family:var(--font-heading);font-weight:600;font-size:19px">Slavonija</div><span class="tag tag-accent-2">Selidba</span></div>
+                  <div class="text-muted" style="font-size:12.5px;margin-top:2px">Seleći · 36 zajednica · plan: suncokret, za 6 dana</div>
+                  <div style="font-size:12.5px;margin-top:6px"><span style="color:var(--color-accent-700)">✓ Evidencija · ✓ Oznaka</span> · <span style="color:var(--color-accent-2-600)">⚠ Suglasnost nije evidentirana</span></div>
+                  <div><button class="btn btn-secondary" style="min-height:44px;margin-top:10px">Dodaj suglasnost — slika ili PDF</button></div>
+                </div>
+              </div>
+              <div style="margin:26px 0 8px">
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Provjera lokacije — Slavonija</div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:6px 16px;font-size:13.5px">
+                  <span>Željeznička pruga</span><span style="color:var(--color-accent-700)">480 m ✓</span>
+                  <span>Javna cesta</span><span style="color:var(--color-accent-700)">84 m ✓</span>
+                  <span>Drugi vaš pčelinjak</span><span style="color:var(--color-accent-700)">1,6 km ✓</span>
+                </div>
+                <p class="text-muted" style="font-size:11px;margin:10px 0 0">Automatska kontrola služi kao pomoć korisniku i ne predstavlja službeno regulatorno odobrenje.</p>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isHives }}" hint-placeholder-val="{{ false }}">
+              <h2 style="font-size:28px;margin:6px 0 0">Košnice</h2>
+              <div class="text-muted" style="font-size:13px;margin-top:2px">Baćina · 54 košnice</div>
+              <div class="seg" style="display:flex;width:100%;margin:16px 0 6px">
+                <label class="seg-opt" style="flex:1;justify-content:center;padding:11px 2px;font-size:13px"><input type="radio" name="filter-2a" defaultChecked="{{ true }}"><span>Sve</span></label>
+                <label class="seg-opt" style="flex:1;justify-content:center;padding:11px 2px;font-size:13px"><input type="radio" name="filter-2a"><span>Za pregled</span></label>
+                <label class="seg-opt" style="flex:1;justify-content:center;padding:11px 2px;font-size:13px"><input type="radio" name="filter-2a"><span>Problematične</span></label>
+              </div>
+              <div style="display:flex;flex-direction:column">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:60px">
+                  <div><div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px">B012</div><div class="text-muted" style="font-size:12.5px">Jaka · 9 okvira · matica viđena · 6. 8.</div></div>
+                  <span class="tag tag-neutral">Uredno</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:60px">
+                  <div><div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px">B018</div><div class="text-muted" style="font-size:12.5px">Srednja · 7 okvira · matica nije potvrđena</div></div>
+                  <span class="tag tag-accent-2">Provjeri</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:60px">
+                  <div><div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px">B024</div><div class="text-muted" style="font-size:12.5px">Zadnji pregled prije 16 dana</div></div>
+                  <button class="btn btn-primary" onClick="{{ goEntry }}" style="min-height:44px">Novi pregled</button>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:60px">
+                  <div><div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px">B027</div><div class="text-muted" style="font-size:12.5px">Jaka · 2 matičnjaka · rizik rojenja</div></div>
+                  <span class="tag tag-accent-2">Matičnjaci</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:60px">
+                  <div><div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px">B033</div><div class="text-muted" style="font-size:12.5px">Slaba · 4 okvira · zalihe slabe</div></div>
+                  <span class="tag tag-accent-2">Prihrana</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:60px">
+                  <div><div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px">B041</div><div class="text-muted" style="font-size:12.5px">Vrlo jaka · 10 okvira · 53 kg ove sezone</div></div>
+                  <span class="tag tag-neutral">Uredno</span>
+                </div>
+              </div>
+              <p class="text-muted" style="font-size:11px;margin:14px 0 8px">Skenirajte QR naljepnicu na košnici za izravno otvaranje kartona.</p>
+            </sc-if>
+
+            <sc-if value="{{ isEntry }}" hint-placeholder-val="{{ false }}">
+              <header style="margin-bottom:20px">
+                <a onClick="{{ goHives }}" style="cursor:pointer;font-size:13px">← Košnice</a>
+                <div class="text-muted" style="font-size:12px;letter-spacing:0.04em;margin-top:10px">Brzi pregled · Baćina · skenirano QR</div>
+                <h2 style="font-size:30px;margin:4px 0 0">Košnica B024</h2>
+                <div class="text-muted" style="font-size:12.5px;margin-top:2px">7. 8. 2026. · 10:23 · datum i vrijeme automatski</div>
+                <a onClick="{{ goQueen }}" style="cursor:pointer;font-size:13px">Matica M-26-014 →</a>
+              </header>
+              <div style="display:flex;flex-direction:column;gap:22px">
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Snaga zajednice</div>
+                  <div class="seg" style="display:flex;width:100%">
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="snaga-2a"><span>Slaba</span></label>
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="snaga-2a"><span>Srednja</span></label>
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="snaga-2a"><span>Jaka</span></label>
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="snaga-2a"><span>Vrlo jaka</span></label>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Broj okvira s pčelama</div>
+                  <div style="display:flex;align-items:center;gap:20px">
+                    <button class="btn btn-secondary" onClick="{{ dec }}" style="width:64px;height:52px;font-size:24px">−</button>
+                    <div style="flex:1;text-align:center;font-family:var(--font-heading);font-weight:600;font-size:38px;line-height:1">{{ frames }}</div>
+                    <button class="btn btn-secondary" onClick="{{ inc }}" style="width:64px;height:52px;font-size:24px">+</button>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Matica</div>
+                  <div class="seg" style="display:flex;width:100%">
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="matica-2a"><span>Viđena</span></label>
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="matica-2a"><span>Jaja prisutna</span></label>
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="matica-2a"><span>Nije pronađena</span></label>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Zalihe hrane</div>
+                  <div class="seg" style="display:flex;width:100%">
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="zalihe-2a"><span>Slabe</span></label>
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="zalihe-2a"><span>Dobre</span></label>
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="zalihe-2a"><span>Odlične</span></label>
+                  </div>
+                </div>
+                <div>
+                  <button class="btn btn-secondary" onClick="{{ toggleVoice }}" style="width:100%;min-height:52px;gap:10px;font-size:15px"><svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M128 24a40 40 0 0 0-40 40v64a40 40 0 0 0 80 0V64a40 40 0 0 0-40-40Z"></path><path d="M200 128a72 72 0 0 1-64 71.6V232h-16v-32.4A72 72 0 0 1 56 128h16a56 56 0 0 0 112 0Z"></path></svg>Glasovni unos</button>
+                  <sc-if value="{{ voice }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:14px">
+                      <p style="font-style:italic;font-size:13.5px;margin:0 0 12px">„Košnica 24, jaka zajednica, devet okvira pčela, sedam legla, matica viđena, dva matičnjaka, dodao sam jedan okvir satne osnove."</p>
+                      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13.5px">
+                        <span class="text-muted">Snaga</span><span>jaka</span>
+                        <span class="text-muted">Okviri pčela</span><span>9</span>
+                        <span class="text-muted">Okviri legla</span><span>7</span>
+                        <span class="text-muted">Matica</span><span>viđena</span>
+                        <span class="text-muted">Matičnjaci</span><span>2</span>
+                        <span class="text-muted">Radnja</span><span>dodana satna osnova</span>
+                      </div>
+                      <button class="btn btn-primary" onClick="{{ confirmVoice }}" style="min-height:44px;margin-top:12px">Potvrdi</button>
+                    </div>
+                  </sc-if>
+                </div>
+                <div style="padding-bottom:8px">
+                  <sc-if value="{{ notSaved }}" hint-placeholder-val="{{ true }}">
+                    <button class="btn btn-primary btn-block" onClick="{{ save }}" style="min-height:54px;font-size:16px">Spremi pregled</button>
+                  </sc-if>
+                  <sc-if value="{{ saved }}" hint-placeholder-val="{{ false }}">
+                    <div style="text-align:center">
+                      <div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px;color:var(--color-accent-700)">Pregled spremljen — B024 · 10:24</div>
+                      <button class="btn btn-ghost" onClick="{{ nextHive }}" style="min-height:44px;margin-top:6px">Sljedeća košnica: B025 →</button>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isObligations }}" hint-placeholder-val="{{ false }}">
+              <div class="text-muted" style="font-size:12px;letter-spacing:0.04em;margin-top:6px">Centar zakonskih obveza</div>
+              <h2 style="font-size:28px;margin:4px 0 0">Moje obveze</h2>
+              <div style="margin:22px 0 0;display:flex;flex-direction:column;gap:24px">
+                <div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><div style="font-family:var(--font-heading);font-weight:600;font-size:17px;line-height:1.25">Godišnja dojava zajednica</div><span class="tag tag-accent-2">Nije predano</span></div>
+                  <div class="text-muted" style="font-size:12.5px;margin-top:2px">Razdoblje 1. 9. – 31. 12.</div>
+                  <a class="btn btn-ghost" style="min-height:44px;margin-left:-5px">Pripremi →</a>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><div style="font-family:var(--font-heading);font-weight:600;font-size:17px;line-height:1.25">Godišnja dojava proizvodnih pokazatelja</div><span class="tag tag-accent-2">Nije predano</span></div>
+                  <div class="text-muted" style="font-size:12.5px;margin-top:2px">Rok 1. prosinca · još {{ deadlineDays }} dana</div>
+                  <a class="btn btn-ghost" style="min-height:44px;margin-left:-5px">Pripremi →</a>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px"><div style="font-family:var(--font-heading);font-weight:600;font-size:17px;line-height:1.25">Evidencija VMP</div><span class="tag tag-accent">Uredno</span></div>
+                  <div class="text-muted" style="font-size:12.5px;margin-top:2px">Posljednji unos 2. 8. 2026. · Vrgorac, 38 zajednica</div>
+                  <a class="btn btn-ghost" style="min-height:44px;margin-left:-5px">Otvori evidenciju →</a>
+                </div>
+              </div>
+              <div style="margin:28px 0 0">
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Podsjetnici</div>
+                <p style="font-size:13.5px;margin:0">Push, e-mail i opcijski SMS: 60, 30, 14, 7 i 3 dana prije roka te na dan roka.</p>
+              </div>
+              <p class="text-muted" style="font-size:11px;margin:22px 0 8px">Informacije u aplikaciji služe kao pomoć u vođenju pčelarskog gospodarstva i ne predstavljaju pravno, veterinarsko niti službeno upravno mišljenje.</p>
+            </sc-if>
+
+            <sc-if value="{{ isHarvest }}" hint-placeholder-val="{{ false }}">
+              <a onClick="{{ goHome }}" style="cursor:pointer;font-size:13px">← Početna</a>
+              <div class="text-muted" style="font-size:12px;letter-spacing:0.04em;margin-top:10px">Proizvodnja · serije meda</div>
+              <h2 style="font-size:28px;margin:4px 0 0">LOT KAD-260524-01</h2>
+              <div style="display:flex;gap:8px;margin-top:8px"><span class="tag tag-accent">Spremno</span><span class="tag tag-neutral">Kadulja</span></div>
+              <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:13.5px;margin:20px 0 0">
+                <span class="text-muted">Vrcanje</span><span>24. 5. 2026. · Baćina · košnice B012–B047</span>
+                <span class="text-muted">Količina</span><span>286 kg</span>
+                <span class="text-muted">Vlaga</span><span>17,2 %</span>
+                <span class="text-muted">Posude</span><span>INOX 1 — 120 kg · INOX 2 — 166 kg</span>
+                <span class="text-muted">Laboratorij</span><span style="color:var(--color-accent-700)">✓ analiza učitana · parametri odgovaraju</span>
+                <span class="text-muted">Pakirano</span><span>185 kg · 411 staklenki od 450 g</span>
+                <span class="text-muted">Skladište</span><span>101 kg</span>
+              </div>
+              <div style="margin:26px 0 0">
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:12px">Sljedivost</div>
+                <div style="border-left:2px solid var(--color-accent);padding-left:16px;display:flex;flex-direction:column;gap:12px;font-size:13.5px">
+                  <div><strong>Staklenka 450 g</strong> · QR na etiketi</div>
+                  <div>LOT KAD-260524-01</div>
+                  <div>Vrcanje 24. 5. 2026.</div>
+                  <div>Pčelinjak Baćina</div>
+                  <div>Košnice B012–B047</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:10px;margin:24px 0 8px"><button class="btn btn-primary" onClick="{{ goNewHarvest }}" style="min-height:48px">Novo vrcanje</button><button class="btn btn-secondary" onClick="{{ goInventory }}" style="min-height:48px">Skladište</button></div>
+            </sc-if>
+
+            <sc-if value="{{ isInspection }}" hint-placeholder-val="{{ false }}">
+              <a onClick="{{ goHome }}" style="cursor:pointer;font-size:13px">← Početna</a>
+              <div class="text-muted" style="font-size:12px;letter-spacing:0.04em;margin-top:10px">Inspekcijski mod · čisti prikaz za nadzor</div>
+              <h2 style="font-size:28px;margin:4px 0 2px">Spremnost: 92 %</h2>
+              <div class="text-muted" style="font-size:12.5px">Bez prikaza osobnih financijskih podataka</div>
+              <div style="margin:24px 0 0;display:flex;flex-direction:column;gap:20px;font-size:13.5px">
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:6px">Registracija</div>
+                  <div style="color:var(--color-accent-700)">✓ EPP · ✓ pčelinjaci · ✓ identifikacijske oznake</div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:6px">Veterinarska dokumentacija</div>
+                  <div style="color:var(--color-accent-700)">✓ VMP evidencija · ✓ tretmani · ✓ nalazi</div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:6px">Proizvodnja</div>
+                  <div style="color:var(--color-accent-700)">✓ serije meda · ✓ sljedivost</div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:6px">Laboratorij</div>
+                  <div style="color:var(--color-accent-2-600)">⚠ nalaz serije MED-2026-014 nije učitan</div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:6px">Obveze</div>
+                  <div style="color:var(--color-accent-2-600)">⚠ godišnja dojava nije označena kao predana</div>
+                </div>
+              </div>
+              <div style="margin:24px 0 8px"><button class="btn btn-secondary" style="min-height:48px;width:100%">Otvori dokumente za nadzor</button></div>
+            </sc-if>
+
+            <sc-if value="{{ isNewHarvest }}" hint-placeholder-val="{{ false }}">
+              <header style="margin-bottom:22px">
+                <a onClick="{{ goHarvest }}" style="cursor:pointer;font-size:13px">← Vrcanja i LOT</a>
+                <h2 style="font-size:30px;margin:10px 0 0">Novo vrcanje</h2>
+                <div class="text-muted" style="font-size:12.5px;margin-top:2px">7. 8. 2026. · datum automatski</div>
+              </header>
+              <div style="display:flex;flex-direction:column;gap:22px">
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Pčelinjak</div>
+                  <div class="seg" style="display:flex;width:100%">
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="vrc-pc-2a" defaultChecked="{{ true }}"><span>Baćina</span></label>
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="vrc-pc-2a"><span>Vrgorac</span></label>
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="vrc-pc-2a"><span>Slavonija</span></label>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Paša</div>
+                  <div style="display:flex;width:100%;border:1px solid var(--color-divider);border-radius:var(--radius-md);overflow:hidden">
+                    <sc-for list="{{ pastures }}" as="opt" hint-placeholder-count="3">
+                      <button onClick="{{ opt.on }}" style="{{ opt.style }}">{{ opt.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Količina</div>
+                  <div style="display:flex;align-items:center;gap:20px">
+                    <button class="btn btn-secondary" onClick="{{ kgDn }}" style="width:64px;height:52px;font-size:24px">−</button>
+                    <div style="flex:1;text-align:center;font-family:var(--font-heading);font-weight:600;font-size:38px;line-height:1">{{ kg }} <span style="font-size:17px;font-weight:400">kg</span></div>
+                    <button class="btn btn-secondary" onClick="{{ kgUp }}" style="width:64px;height:52px;font-size:24px">+</button>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Vlaga</div>
+                  <div style="display:flex;align-items:center;gap:20px">
+                    <button class="btn btn-secondary" onClick="{{ vlDn }}" style="width:64px;height:52px;font-size:24px">−</button>
+                    <div style="flex:1;text-align:center;font-family:var(--font-heading);font-weight:600;font-size:38px;line-height:1">{{ vlText }} <span style="font-size:17px;font-weight:400">%</span></div>
+                    <button class="btn btn-secondary" onClick="{{ vlUp }}" style="width:64px;height:52px;font-size:24px">+</button>
+                  </div>
+                </div>
+                <div style="border-top:1px solid var(--color-divider);padding-top:16px">
+                  <div class="text-muted" style="font-size:12.5px">LOT serije — dodjeljuje se automatski</div>
+                  <div style="font-family:var(--font-heading);font-weight:600;font-size:22px;margin-top:2px">{{ lotCode }}</div>
+                </div>
+                <div style="padding-bottom:4px">
+                  <sc-if value="{{ harvestNot }}" hint-placeholder-val="{{ true }}">
+                    <button class="btn btn-primary btn-block" onClick="{{ createHarvest }}" style="min-height:54px;font-size:16px">Stvori LOT i spremi vrcanje</button>
+                  </sc-if>
+                  <sc-if value="{{ harvestSaved }}" hint-placeholder-val="{{ false }}">
+                    <div style="text-align:center">
+                      <div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px;color:var(--color-accent-700)">Vrcanje spremljeno — {{ lotCode }} · {{ kg }} kg · {{ vlText }} %</div>
+                      <div style="display:flex;justify-content:center;gap:10px">
+                        <button class="btn btn-ghost" onClick="{{ resetHarvest }}" style="min-height:44px;margin-top:6px">Novo vrcanje</button>
+                        <button class="btn btn-ghost" onClick="{{ goHarvest }}" style="min-height:44px;margin-top:6px">Karton serije →</button>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isQueen }}" hint-placeholder-val="{{ false }}">
+              <header style="margin-bottom:22px">
+                <a onClick="{{ goEntry }}" style="cursor:pointer;font-size:13px">← Košnica B024</a>
+                <div class="text-muted" style="font-size:12px;letter-spacing:0.04em;margin-top:10px">Matice · Baćina</div>
+                <h2 style="font-size:30px;margin:4px 0 0">Matica M-26-014</h2>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px">
+                  <span style="width:14px;height:14px;border-radius:50%;background:#fff;border:1.5px solid var(--color-neutral-400)"></span>
+                  <span class="text-muted">Bijela oznaka · 2026. — boju predlaže aplikacija</span>
+                </div>
+              </header>
+              <div style="display:flex;flex-direction:column;gap:24px">
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Status</div>
+                  <div style="display:flex;width:100%;border:1px solid var(--color-divider);border-radius:var(--radius-md);overflow:hidden">
+                    <sc-for list="{{ statusOpts }}" as="opt" hint-placeholder-count="3">
+                      <button onClick="{{ opt.on }}" style="{{ opt.style }}">{{ opt.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:13.5px">
+                  <span class="text-muted">Podrijetlo</span><span>Uzgajivač Kezić · Carnica, linija F1</span>
+                  <span class="text-muted">Uvedena</span><span>12. 5. 2026. · košnica B024</span>
+                  <span class="text-muted">Oplodnja</span><span>potvrđena 26. 5. 2026.</span>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:12px">Ocjene</div>
+                  <div style="display:flex;flex-direction:column;gap:14px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                      <span style="font-size:14px">Produktivnost</span>
+                      <div style="display:flex;gap:10px"><sc-for list="{{ prodDots }}" as="d" hint-placeholder-count="5"><button onClick="{{ d.on }}" aria-label="Ocjena produktivnosti" style="{{ d.style }}"></button></sc-for></div>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                      <span style="font-size:14px">Mirnoća</span>
+                      <div style="display:flex;gap:10px"><sc-for list="{{ mirDots }}" as="d" hint-placeholder-count="5"><button onClick="{{ d.on }}" aria-label="Ocjena mirnoće" style="{{ d.style }}"></button></sc-for></div>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                      <span style="font-size:14px">Sklonost rojenju</span>
+                      <div style="display:flex;gap:10px"><sc-for list="{{ rojDots }}" as="d" hint-placeholder-count="5"><button onClick="{{ d.on }}" aria-label="Ocjena sklonosti rojenju" style="{{ d.style }}"></button></sc-for></div>
+                    </div>
+                  </div>
+                </div>
+                <p style="font-style:italic;font-size:14.5px;line-height:1.5;margin:0">Potomstvo linije Kezić F1 ima 17 % veći prosječni prinos od prosjeka pčelinjaka.</p>
+                <div style="display:flex;gap:10px;padding-bottom:4px">
+                  <button class="btn btn-secondary" style="flex:1;min-height:48px">Zamijeni maticu</button>
+                  <button class="btn btn-secondary" onClick="{{ goEntry }}" style="flex:1;min-height:48px">Karton košnice</button>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isVarroa }}" hint-placeholder-val="{{ false }}">
+              <a onClick="{{ goHome }}" style="cursor:pointer;font-size:13px">← Početna</a>
+              <div class="text-muted" style="font-size:12px;letter-spacing:0.04em;margin-top:10px">Zdravlje · Baćina</div>
+              <h2 style="font-size:28px;margin:4px 0 0">Kontrola varoe</h2>
+              <div class="text-muted" style="font-size:12.5px;margin-top:2px">posljednja kontrola prije {{ varroaDays }} dana</div>
+              <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:13.5px;margin:20px 0 0">
+                <span class="text-muted">Datum</span><span>21. 6. 2026.</span>
+                <span class="text-muted">Metoda</span><span>šećer u prahu</span>
+                <span class="text-muted">Pregledano</span><span>300 pčela</span>
+                <span class="text-muted">Varoa</span><span>9</span>
+                <span class="text-muted">Infestacija</span><span style="color:var(--color-accent-2-600)">3,0 % — na pragu, preporučen tretman</span>
+              </div>
+              <div style="margin:26px 0 0">
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:10px">Infestacija kroz godinu</div>
+                <svg viewBox="0 0 352 160" style="width:100%;height:auto;display:block">
+                  <line x1="8" y1="22" x2="344" y2="22" stroke="var(--color-accent-2-600)" stroke-width="1" stroke-dasharray="4 4"></line>
+                  <text x="8" y="14" font-size="10" fill="var(--color-accent-2-700)" font-family="var(--font-body)">prag 3 %</text>
+                  <rect x="16" y="112" width="30" height="18" fill="var(--color-accent-400)"></rect>
+                  <rect x="72" y="101" width="30" height="29" fill="var(--color-accent-400)"></rect>
+                  <rect x="128" y="87" width="30" height="43" fill="var(--color-accent-400)"></rect>
+                  <rect x="184" y="62" width="30" height="68" fill="var(--color-accent-400)"></rect>
+                  <rect x="240" y="36" width="30" height="94" fill="var(--color-accent-400)"></rect>
+                  <rect x="296" y="22" width="30" height="108" fill="var(--color-accent-2-500)"></rect>
+                  <text x="311" y="14" font-size="10" fill="var(--color-accent-2-700)" font-family="var(--font-body)" text-anchor="middle">3,0</text>
+                  <line x1="8" y1="130" x2="344" y2="130" stroke="var(--color-divider)" stroke-width="1"></line>
+                  <text x="31" y="147" font-size="10" fill="var(--color-neutral-600)" font-family="var(--font-body)" text-anchor="middle">ožu</text>
+                  <text x="87" y="147" font-size="10" fill="var(--color-neutral-600)" font-family="var(--font-body)" text-anchor="middle">tra</text>
+                  <text x="143" y="147" font-size="10" fill="var(--color-neutral-600)" font-family="var(--font-body)" text-anchor="middle">svi</text>
+                  <text x="199" y="147" font-size="10" fill="var(--color-neutral-600)" font-family="var(--font-body)" text-anchor="middle">lip</text>
+                  <text x="255" y="147" font-size="10" fill="var(--color-neutral-600)" font-family="var(--font-body)" text-anchor="middle">srp</text>
+                  <text x="311" y="147" font-size="10" fill="var(--color-neutral-600)" font-family="var(--font-body)" text-anchor="middle">kol</text>
+                </svg>
+                <p class="text-muted" style="font-size:11px;margin:8px 0 0">Prirodni pad i šećer u prahu, prije tretmana · rezultat prema unaprijed definiranim stručnim pravilima</p>
+              </div>
+              <div style="display:flex;gap:10px;margin:22px 0 8px">
+                <button class="btn btn-primary" style="flex:1;min-height:48px">Unesi kontrolu</button>
+                <button class="btn btn-secondary" style="flex:1;min-height:48px">Evidencija VMP</button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isInventory }}" hint-placeholder-val="{{ false }}">
+              <a onClick="{{ goHome }}" style="cursor:pointer;font-size:13px">← Početna</a>
+              <div class="text-muted" style="font-size:12px;letter-spacing:0.04em;margin-top:10px">Zalihe · svi pčelinjaci</div>
+              <h2 style="font-size:28px;margin:4px 0 0">Skladište</h2>
+              <div style="margin:22px 0 0;display:flex;flex-direction:column;gap:24px">
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Med</div>
+                  <div style="display:grid;grid-template-columns:1fr auto;gap:10px 16px;font-size:14.5px">
+                    <span>Kadulja · <a onClick="{{ goHarvest }}" style="cursor:pointer">LOT KAD-260524-01</a></span><span style="font-family:var(--font-heading);font-weight:600">286 kg</span>
+                    <span>Bagrem</span><span style="font-family:var(--font-heading);font-weight:600">430 kg</span>
+                    <span>Kesten</span><span style="font-family:var(--font-heading);font-weight:600">118 kg</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Ambalaža</div>
+                  <div style="display:grid;grid-template-columns:1fr auto;gap:10px 16px;font-size:14.5px;align-items:center">
+                    <span>Staklenke 450 g</span><span style="font-family:var(--font-heading);font-weight:600">840 kom</span>
+                    <span>Poklopci</span><span style="font-family:var(--font-heading);font-weight:600">900 kom</span>
+                    <span>Etikete <span class="tag tag-accent-2" style="margin-left:6px">Ispod minimuma</span></span><span style="font-family:var(--font-heading);font-weight:600">120 kom</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">VMP</div>
+                  <div style="display:grid;grid-template-columns:1fr auto;gap:10px 16px;font-size:14.5px">
+                    <span>Apivar · LOT AP-2413 · rok 3/2027</span><span style="font-family:var(--font-heading);font-weight:600">12 kom</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Prihrana</div>
+                  <div style="display:grid;grid-template-columns:1fr auto;gap:10px 16px;font-size:14.5px">
+                    <span>Šećer</span><span style="font-family:var(--font-heading);font-weight:600">250 kg</span>
+                    <span>Pogače</span><span style="font-family:var(--font-heading);font-weight:600">60 kom</span>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;gap:10px;margin:26px 0 8px">
+                <button class="btn btn-primary" onClick="{{ goSales }}" style="flex:1;min-height:48px">Nova prodaja</button>
+                <button class="btn btn-secondary" style="flex:1;min-height:48px">Pakiranje</button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isSales }}" hint-placeholder-val="{{ false }}">
+              <a onClick="{{ goInventory }}" style="cursor:pointer;font-size:13px">← Skladište</a>
+              <div class="text-muted" style="font-size:12px;letter-spacing:0.04em;margin-top:10px">Prodaja</div>
+              <h2 style="font-size:28px;margin:4px 0 0">Nova prodaja</h2>
+              <div style="margin:22px 0 0;display:flex;flex-direction:column;gap:22px">
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Kupac</div>
+                  <div class="seg" style="display:flex;width:100%">
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="kupac-2a" defaultChecked="{{ true }}"><span>Privatna osoba</span></label>
+                    <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="kupac-2a"><span>Tvrtka</span></label>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Proizvod</div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                    <span style="font-size:15px">Kaduljin med 450 g · LOT KAD-260524-01</span>
+                    <a class="btn btn-ghost" style="min-height:44px">Promijeni</a>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Količina</div>
+                  <div style="display:flex;align-items:center;gap:20px">
+                    <button class="btn btn-secondary" onClick="{{ jarsDn }}" style="width:64px;height:52px;font-size:24px">−</button>
+                    <div style="flex:1;text-align:center;font-family:var(--font-heading);font-weight:600;font-size:38px;line-height:1">{{ jars }} <span style="font-size:17px;font-weight:400">× 450 g</span></div>
+                    <button class="btn btn-secondary" onClick="{{ jarsUp }}" style="width:64px;height:52px;font-size:24px">+</button>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:13.5px">
+                  <span class="text-muted">Cijena</span><span>12 € / kom</span>
+                </div>
+                <div style="border-top:1px solid var(--color-divider);padding-top:16px;display:flex;align-items:baseline;justify-content:space-between">
+                  <span class="text-muted" style="font-size:13px">Ukupno</span>
+                  <span style="font-family:var(--font-heading);font-weight:600;font-size:38px">{{ total }} €</span>
+                </div>
+                <div style="padding-bottom:4px">
+                  <sc-if value="{{ saleNot }}" hint-placeholder-val="{{ true }}">
+                    <button class="btn btn-primary btn-block" onClick="{{ saveSale }}" style="min-height:54px;font-size:16px">Spremi prodaju</button>
+                  </sc-if>
+                  <sc-if value="{{ saleSaved }}" hint-placeholder-val="{{ false }}">
+                    <div style="text-align:center">
+                      <div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px;color:var(--color-accent-700)">Prodaja spremljena — {{ jars }} × 450 g · {{ total }} €</div>
+                      <div class="text-muted" style="font-size:12.5px;margin-top:4px">Skladište automatski umanjeno, LOT povezan s kupcem</div>
+                      <button class="btn btn-ghost" onClick="{{ resetSale }}" style="min-height:44px;margin-top:6px">Nova prodaja →</button>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-if>
+
+          </div>
+          <nav style="display:flex;align-items:flex-end;justify-content:space-between;padding:10px 20px 40px;border-top:1px solid var(--color-divider)">
+            <button onClick="{{ goHome }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;padding:0;font-family:var(--font-body);color:{{ cHome }};font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M216 120v96H40v-96l88-80Z"></path><path d="M128 32 24 128l11 12 13-12v88a8 8 0 0 0 8 8h56v-64h32v64h56a8 8 0 0 0 8-8v-88l13 12 11-12Z"></path></svg><span>Početna</span></button>
+            <button onClick="{{ goApiaries }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;padding:0;font-family:var(--font-body);color:{{ cApiaries }};font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M128 24a80 80 0 0 0-80 80c0 60 80 128 80 128s80-68 80-128a80 80 0 0 0-80-80Z"></path><circle cx="128" cy="104" r="30"></circle></svg><span>Pčelinjaci</span></button>
+            <button onClick="{{ goHives }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;padding:0;font-family:var(--font-body);color:{{ cHives }};font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M56 100h144v56H56Z"></path><path d="M48 64h160v16H48Zm8 32h144v10H56Zm0 50h144v10H56Zm-8 26h160v16H48Zm24 32h112v14H72Z"></path></svg><span>Košnice</span></button>
+            <button onClick="{{ goEntry }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;padding:0;font-family:var(--font-body);color:{{ cEntry }};font-size:10.5px"><span style="display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:var(--color-accent);color:var(--color-bg)"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path d="M216 136h-80v80h-16v-80H40v-16h80V40h16v80h80Z"></path></svg></span><span>Unos</span></button>
+            <button onClick="{{ goObligations }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;padding:0;font-family:var(--font-body);color:{{ cObligations }};font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M208 40H48a8 8 0 0 0-8 8v160a8 8 0 0 0 8 8h160a8 8 0 0 0 8-8V48a8 8 0 0 0-8-8Z"></path><path d="M110 176l-44-44 12-12 32 32 68-68 12 12Z"></path></svg><span>Obveze</span></button>
+          </nav>
+        </div>
+      </x-import>
+    </div>
+  </div>
+  <p class="dv-next">Dalje: „dodaj ekran vrcanja kao formu" · „razradi maticu i zdravstveni karton" · „napravi web landing za Moj Pčelinjak"</p>
+</section>
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Moj Pčelinjak — tri smjera mobilne aplikacije</span></div>
+  <div style="max-width:640px;margin:0 0 26px;font-size:13.5px;line-height:1.55;color:var(--color-neutral-800)">
+    <p style="margin:0 0 8px"><em>„Pčelar se brine o pčelama. Aplikacija se brine o evidenciji, rokovima i dokumentaciji."</em></p>
+    <p style="margin:0">Tri smjera početnog iskustva, prema scenariju: <a href="#1a">1a</a> dashboard kao naslovnica dnevnika, <a href="#1b">1b</a> operativni pregled s upozorenjima i pčelinjacima, <a href="#1c">1c</a> terenski brzi pregled košnice — unos jednom rukom, s glasovnim unosom (interaktivno: probajte kontrole). Nakon odabira smjera gradim cijeli tok: pčelinjaci, košnice, obveze, vrcanje, LOT, inspekcija.</p>
+  </div>
+  <div class="dv-opts">
+
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a><span><strong>Naslovnica</strong> — dashboard kao prva stranica novina: datumska letvica, velika brojka, obveze kao naslovi, dnevnik</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)">
+          <div style="flex:1;overflow:auto;padding:64px 20px 16px">
+            <header>
+              <div style="border-top:3px solid var(--color-text)"></div>
+              <div style="display:flex;justify-content:space-between;gap:8px;font-size:10px;letter-spacing:0.07em;text-transform:uppercase;padding:5px 1px"><span>Petak, 7. kolovoza 2026.</span><span>{{ farmName }}</span><span>EPP 03217</span></div>
+              <div style="border-top:1px solid var(--color-text)"></div>
+              <h1 style="font-size:33px;margin:16px 0 2px;letter-spacing:-0.02em">Moj pčelinjak</h1>
+              <div class="text-muted" style="font-size:13px;font-style:italic">Digitalni dnevnik hrvatskog pčelara</div>
+            </header>
+            <div style="margin:26px 0 0">
+              <span class="cmyk-num" style="display:block;font-family:var(--font-heading);font-weight:600;font-size:84px;margin-bottom:14px"><span class="paper">128</span><span class="plate plate-c" aria-hidden="true">128</span><span class="plate plate-m" aria-hidden="true">128</span><span class="plate plate-y" aria-hidden="true">128</span></span>
+              <div style="font-size:15px;margin-top:8px">aktivnih pčelinjih zajednica</div>
+              <div class="text-muted" style="font-size:12.5px;margin-top:2px">3 pčelinjaka · 96 košnica · 12 čeka pregled</div>
+            </div>
+            <div style="margin:30px 0 0">
+              <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-2-700);margin-bottom:14px">Važno</div>
+              <div style="display:flex;flex-direction:column;gap:20px">
+                <div style="display:flex;gap:10px">
+                  <span style="flex:none;width:9px;height:9px;border-radius:50%;background:var(--color-accent-2-600);margin-top:6px"></span>
+                  <div>
+                    <div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px;line-height:1.25">Godišnja dojava proizvodnih pokazatelja</div>
+                    <div class="text-muted" style="font-size:12.5px;margin-top:2px">Rok 1. prosinca · još {{ deadlineDays }} dana</div>
+                    <a href="#1a" class="btn btn-ghost" style="min-height:44px;margin-left:-5px">Pripremi obrazac →</a>
+                  </div>
+                </div>
+                <div style="display:flex;gap:10px">
+                  <span style="flex:none;width:9px;height:9px;border-radius:50%;background:var(--color-accent-2-400);margin-top:6px"></span>
+                  <div>
+                    <div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px;line-height:1.25">Kontrola varoe</div>
+                    <div class="text-muted" style="font-size:12.5px;margin-top:2px">Baćina · {{ varroaDays }} dana bez evidentirane kontrole</div>
+                    <a href="#1a" class="btn btn-ghost" style="min-height:44px;margin-left:-5px">Unesi kontrolu →</a>
+                  </div>
+                </div>
+                <div style="display:flex;gap:10px">
+                  <span style="flex:none;width:9px;height:9px;border-radius:50%;background:var(--color-neutral-400);margin-top:6px"></span>
+                  <div>
+                    <div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px;line-height:1.25">Suglasnost za pašu</div>
+                    <div class="text-muted" style="font-size:12.5px;margin-top:2px">Selidba na suncokret za 6 dana · suglasnost nije evidentirana</div>
+                    <a href="#1a" class="btn btn-ghost" style="min-height:44px;margin-left:-5px">Dodaj suglasnost →</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="margin:30px 0 8px">
+              <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:14px">Dnevnik</div>
+              <div style="display:grid;grid-template-columns:52px 1fr;gap:12px 12px;font-size:14px">
+                <span class="text-muted" style="font-size:12px;padding-top:2px">6. 8.</span><span>Pregledano 26 zajednica, Baćina — 4 s matičnjacima</span>
+                <span class="text-muted" style="font-size:12px;padding-top:2px">2. 8.</span><span>Tretman protiv varoe, Vrgorac, 38 zajednica</span>
+                <span class="text-muted" style="font-size:12px;padding-top:2px">28. 7.</span><span>Vrcanje kadulje — 286 kg, LOT KAD-260524-01</span>
+                <span class="text-muted" style="font-size:12px;padding-top:2px">21. 7.</span><span>Dodana medišta, Baćina, košnice B012–B047</span>
+              </div>
+            </div>
+          </div>
+          <nav style="display:flex;align-items:flex-end;justify-content:space-between;padding:10px 20px 40px;border-top:1px solid var(--color-divider)">
+            <a href="#1a" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;text-decoration:none;color:var(--color-accent-700);font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M216 120v96H40v-96l88-80Z"></path><path d="M128 32 24 128l11 12 13-12v88a8 8 0 0 0 8 8h56v-64h32v64h56a8 8 0 0 0 8-8v-88l13 12 11-12Z"></path></svg><span>Početna</span></a>
+            <a href="#1a" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;text-decoration:none;color:var(--color-neutral-600);font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M128 24a80 80 0 0 0-80 80c0 60 80 128 80 128s80-68 80-128a80 80 0 0 0-80-80Z"></path><circle cx="128" cy="104" r="30"></circle></svg><span>Pčelinjaci</span></a>
+            <a href="#1a" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;text-decoration:none;color:var(--color-neutral-600);font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M56 100h144v56H56Z"></path><path d="M48 64h160v16H48Zm8 32h144v10H56Zm0 50h144v10H56Zm-8 26h160v16H48Zm24 32h112v14H72Z"></path></svg><span>Košnice</span></a>
+            <a href="#1a" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;text-decoration:none;color:var(--color-neutral-600);font-size:10.5px"><span style="display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:var(--color-accent);color:var(--color-bg)"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path d="M216 136h-80v80h-16v-80H40v-16h80V40h16v80h80Z"></path></svg></span><span>Unos</span></a>
+            <a href="#1a" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;text-decoration:none;color:var(--color-neutral-600);font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M208 40H48a8 8 0 0 0-8 8v160a8 8 0 0 0 8 8h160a8 8 0 0 0 8-8V48a8 8 0 0 0-8-8Z"></path><path d="M110 176l-44-44 12-12 32 32 68-68 12 12Z"></path></svg><span>Obveze</span></a>
+          </nav>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a><span><strong>Operativni pregled</strong> — brojke gospodarstva, kartice upozorenja s akcijama, popis pčelinjaka</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)">
+          <div style="flex:1;overflow:auto;padding:64px 20px 16px">
+            <header>
+              <div class="text-muted" style="font-size:12px;letter-spacing:0.04em">Petak, 7. kolovoza · Ploče · 26 °C, bez kiše</div>
+              <h2 style="font-size:28px;margin:6px 0 0">Dobro jutro, Ivane</h2>
+              <div class="text-muted" style="font-size:13px;margin-top:2px">Vaš pčelinjak danas</div>
+            </header>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px 16px;margin:24px 0 0">
+              <div><div style="font-family:var(--font-heading);font-weight:600;font-size:42px;line-height:1">128</div><div class="text-muted" style="font-size:12.5px;margin-top:4px">aktivnih zajednica</div></div>
+              <div><div style="font-family:var(--font-heading);font-weight:600;font-size:42px;line-height:1">3</div><div class="text-muted" style="font-size:12.5px;margin-top:4px">pčelinjaka</div></div>
+              <div><div style="font-family:var(--font-heading);font-weight:600;font-size:42px;line-height:1;color:var(--color-accent-2-600)">4</div><div class="text-muted" style="font-size:12.5px;margin-top:4px">obveze u sljedećih 30 dana</div></div>
+              <div><div style="font-family:var(--font-heading);font-weight:600;font-size:42px;line-height:1">12</div><div class="text-muted" style="font-size:12.5px;margin-top:4px">košnica zahtijeva pregled</div></div>
+            </div>
+            <div style="margin:28px 0 0;display:flex;flex-direction:column;gap:12px">
+              <div class="card elev-sm">
+                <div class="card-kicker" style="color:var(--color-accent-2-700)">Rok 1. prosinca · još {{ deadlineDays }} dana</div>
+                <div class="card-title">Godišnja dojava proizvodnih pokazatelja</div>
+                <div><button class="btn btn-secondary" style="min-height:44px">Pripremi obrazac</button></div>
+              </div>
+              <div class="card">
+                <div class="card-kicker" style="color:var(--color-accent-2-700)">Baćina · {{ varroaDays }} dana bez kontrole</div>
+                <div class="card-title">Kontrola varoe</div>
+                <div><button class="btn btn-secondary" style="min-height:44px">Unesi kontrolu</button></div>
+              </div>
+              <div class="card">
+                <div class="card-kicker">Selidba za 6 dana · suncokret</div>
+                <div class="card-title">Suglasnost za smještaj nije evidentirana</div>
+                <div><button class="btn btn-secondary" style="min-height:44px">Dodaj suglasnost</button></div>
+              </div>
+            </div>
+            <div style="margin:30px 0 8px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">Moji pčelinjaci</div>
+                <a href="#1b" style="font-size:12.5px">Svi →</a>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:58px">
+                <div><div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px">Baćina</div><div class="text-muted" style="font-size:12.5px">Stacionarni · 54 zajednice · LR</div></div>
+                <span class="tag tag-accent">Aktivno</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:58px">
+                <div><div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px">Vrgorac</div><div class="text-muted" style="font-size:12.5px">Seleći · 38 zajednica · paša: kadulja</div></div>
+                <span class="tag tag-accent">Aktivno</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:58px">
+                <div><div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px">Slavonija</div><div class="text-muted" style="font-size:12.5px">Seleći · 36 zajednica · plan: suncokret</div></div>
+                <span class="tag tag-accent-2">Selidba</span>
+              </div>
+            </div>
+          </div>
+          <nav style="display:flex;align-items:flex-end;justify-content:space-between;padding:10px 20px 40px;border-top:1px solid var(--color-divider)">
+            <a href="#1b" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;text-decoration:none;color:var(--color-accent-700);font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M216 120v96H40v-96l88-80Z"></path><path d="M128 32 24 128l11 12 13-12v88a8 8 0 0 0 8 8h56v-64h32v64h56a8 8 0 0 0 8-8v-88l13 12 11-12Z"></path></svg><span>Početna</span></a>
+            <a href="#1b" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;text-decoration:none;color:var(--color-neutral-600);font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M128 24a80 80 0 0 0-80 80c0 60 80 128 80 128s80-68 80-128a80 80 0 0 0-80-80Z"></path><circle cx="128" cy="104" r="30"></circle></svg><span>Pčelinjaci</span></a>
+            <a href="#1b" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;text-decoration:none;color:var(--color-neutral-600);font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M56 100h144v56H56Z"></path><path d="M48 64h160v16H48Zm8 32h144v10H56Zm0 50h144v10H56Zm-8 26h160v16H48Zm24 32h112v14H72Z"></path></svg><span>Košnice</span></a>
+            <a href="#1b" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;text-decoration:none;color:var(--color-neutral-600);font-size:10.5px"><span style="display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:var(--color-accent);color:var(--color-bg)"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path d="M216 136h-80v80h-16v-80H40v-16h80V40h16v80h80Z"></path></svg></span><span>Unos</span></a>
+            <a href="#1b" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:52px;min-height:44px;justify-content:flex-end;text-decoration:none;color:var(--color-neutral-600);font-size:10.5px"><svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M208 40H48a8 8 0 0 0-8 8v160a8 8 0 0 0 8 8h160a8 8 0 0 0 8-8V48a8 8 0 0 0-8-8Z"></path><path d="M110 176l-44-44 12-12 32 32 68-68 12 12Z"></path></svg><span>Obveze</span></a>
+          </nav>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a><span><strong>Teren: brzi pregled</strong> — unos jednom rukom, veliki elementi, glasovni unos (interaktivno)</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+        <div style="height:100%;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)">
+          <div style="flex:1;overflow:auto;padding:64px 20px 16px">
+            <header style="margin-bottom:22px">
+              <div class="text-muted" style="font-size:12px;letter-spacing:0.04em">Brzi pregled · Baćina · skenirano QR</div>
+              <h2 style="font-size:30px;margin:4px 0 0">Košnica B024</h2>
+              <div class="text-muted" style="font-size:12.5px;margin-top:2px">7. 8. 2026. · 10:23 · datum i vrijeme automatski</div>
+            </header>
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Snaga zajednice</div>
+                <div class="seg" style="display:flex;width:100%">
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="snaga-1c"><span>Slaba</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="snaga-1c"><span>Srednja</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="snaga-1c"><span>Jaka</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="snaga-1c"><span>Vrlo jaka</span></label>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Broj okvira s pčelama</div>
+                <div style="display:flex;align-items:center;gap:20px">
+                  <button class="btn btn-secondary" onClick="{{ dec }}" style="width:64px;height:52px;font-size:24px">−</button>
+                  <div style="flex:1;text-align:center;font-family:var(--font-heading);font-weight:600;font-size:38px;line-height:1">{{ frames }}</div>
+                  <button class="btn btn-secondary" onClick="{{ inc }}" style="width:64px;height:52px;font-size:24px">+</button>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Leglo</div>
+                <div class="seg" style="display:flex;width:100%">
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="leglo-1c"><span>Nema</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="leglo-1c"><span>Malo</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="leglo-1c"><span>Normalno</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="leglo-1c"><span>Puno</span></label>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Matica</div>
+                <div class="seg" style="display:flex;width:100%">
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="matica-1c"><span>Viđena</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="matica-1c"><span>Jaja prisutna</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="matica-1c"><span>Nije pronađena</span></label>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px">Zalihe hrane</div>
+                <div class="seg" style="display:flex;width:100%">
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="zalihe-1c"><span>Slabe</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="zalihe-1c"><span>Dobre</span></label>
+                  <label class="seg-opt" style="flex:1;justify-content:center;padding:13px 2px;font-size:13.5px"><input type="radio" name="zalihe-1c"><span>Odlične</span></label>
+                </div>
+              </div>
+              <div>
+                <button class="btn btn-secondary" onClick="{{ toggleVoice }}" style="width:100%;min-height:52px;gap:10px;font-size:15px"><svg width="20" height="20" viewBox="0 0 256 256" fill="currentColor"><path opacity="0.25" d="M128 24a40 40 0 0 0-40 40v64a40 40 0 0 0 80 0V64a40 40 0 0 0-40-40Z"></path><path d="M200 128a72 72 0 0 1-64 71.6V232h-16v-32.4A72 72 0 0 1 56 128h16a56 56 0 0 0 112 0Z"></path></svg>Glasovni unos</button>
+                <sc-if value="{{ voice }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top:14px">
+                    <p style="font-style:italic;font-size:13.5px;color:var(--color-neutral-800);margin:0 0 12px">„Košnica 24, jaka zajednica, devet okvira pčela, sedam legla, matica viđena, dva matičnjaka, dodao sam jedan okvir satne osnove."</p>
+                    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13.5px">
+                      <span class="text-muted">Snaga</span><span>jaka</span>
+                      <span class="text-muted">Okviri pčela</span><span>9</span>
+                      <span class="text-muted">Okviri legla</span><span>7</span>
+                      <span class="text-muted">Matica</span><span>viđena</span>
+                      <span class="text-muted">Matičnjaci</span><span>2</span>
+                      <span class="text-muted">Radnja</span><span>dodana satna osnova</span>
+                    </div>
+                    <button class="btn btn-primary" onClick="{{ confirmVoice }}" style="min-height:44px;margin-top:12px">Potvrdi</button>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="padding-bottom:8px">
+                <sc-if value="{{ notSaved }}" hint-placeholder-val="{{ true }}">
+                  <button class="btn btn-primary btn-block" onClick="{{ save }}" style="min-height:54px;font-size:16px">Spremi pregled</button>
+                </sc-if>
+                <sc-if value="{{ saved }}" hint-placeholder-val="{{ false }}">
+                  <div style="text-align:center">
+                    <div style="font-family:var(--font-heading);font-weight:600;font-size:16.5px;color:var(--color-accent-700)">Pregled spremljen — B024 · 10:24</div>
+                    <button class="btn btn-ghost" onClick="{{ nextHive }}" style="min-height:44px;margin-top:6px">Sljedeća košnica: B025 →</button>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+  <p class="dv-next">Dalje: „gradi cijeli tok na temelju <a class="dv-oid" href="#1b">1b</a>" · „spoji masthead iz <a class="dv-oid" href="#1a">1a</a> s karticama iz <a class="dv-oid" href="#1b">1b</a>" · „pokaži još ekrana: obveze, vrcanje, inspekcija"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;darkMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Prikaz&quot;},&quot;farmName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;OPG Matić&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Podaci&quot;},&quot;deadlineDays&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:116,&quot;min&quot;:0,&quot;max&quot;:365,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Rokovi&quot;},&quot;varroaDays&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:47,&quot;min&quot;:0,&quot;max&quot;:120,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Rokovi&quot;}}">
+class Component extends DCLogic {
+  state = { frames: 8, saved: false, voice: false, screen: 'home', darkOverride: null,
+    pasa: 'Kadulja', kg: 286, vl: 17.2, harvestSaved: false, queenStatus: 'Dobra', prod: 4, mir: 5, roj: 2,
+    jars: 12, saleSaved: false };
+  renderVals() {
+    const dark = this.state.darkOverride ?? (this.props.darkMode ?? false);
+    const s = this.state.screen;
+    const go = (scr) => () => this.setState({ screen: scr });
+    const act = 'var(--color-accent-700)', idle = 'var(--color-neutral-600)';
+    const base = { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--color-bg)', color: 'var(--color-text)', fontFamily: 'var(--font-body)' };
+    const themeVars = dark ? Object.assign({}, base, {
+      '--color-bg': '#201e1d', '--color-surface': '#2d2b2b', '--color-text': '#f3f2f2',
+      '--color-divider': 'rgba(243,242,242,0.22)', '--color-accent': '#62c5ee', '--color-accent-700': '#99e0ff',
+      '--color-accent-100': '#0a303e', '--color-accent-800': '#cbeeff',
+      '--color-accent-2-100': '#4b1528', '--color-accent-2-800': '#ffdee6',
+      '--color-accent-2-600': '#ff90b1', '--color-accent-2-700': '#ffc0d0', '--color-accent-2-400': '#ff90b1',
+      '--color-neutral-100': '#444141', '--color-neutral-800': '#eae7e7',
+      '--color-neutral-600': '#9b9797', '--color-neutral-700': '#bab6b6', '--color-neutral-400': '#7d7979'
+    }) : base;
+    const segBase = (i) => ({ flex: 1, textAlign: 'center', padding: '13px 2px', fontSize: '13.5px', minHeight: '44px', cursor: 'pointer', fontFamily: 'var(--font-body)', background: 'transparent', border: 'none', borderLeft: i ? '1px solid var(--color-divider)' : 'none', color: 'inherit' });
+    const prefixes = { Kadulja: 'KAD', Bagrem: 'BAG', Suncokret: 'SUN' };
+    const pastures = ['Kadulja', 'Bagrem', 'Suncokret'].map((n, i) => ({ label: n, on: () => this.setState({ pasa: n }), style: Object.assign(segBase(i), this.state.pasa === n ? { background: 'var(--color-accent)', color: 'var(--color-bg)' } : {}) }));
+    const statusOpts = [['Dobra', 'var(--color-accent)'], ['Pratiti', 'var(--color-neutral-600)'], ['Zamjena', 'var(--color-accent-2-600)']].map((d, i) => ({ label: d[0], on: () => this.setState({ queenStatus: d[0] }), style: Object.assign(segBase(i), this.state.queenStatus === d[0] ? { background: d[1], color: 'var(--color-bg)' } : {}) }));
+    const mkDots = (key) => [1, 2, 3, 4, 5].map(n => ({ on: () => this.setState({ [key]: n }), style: { width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', padding: 0, border: '1.5px solid var(--color-neutral-400)', background: this.state[key] >= n ? 'var(--color-text)' : 'transparent' } }));
+    return {
+      pastures, statusOpts, prodDots: mkDots('prod'), mirDots: mkDots('mir'), rojDots: mkDots('roj'),
+      kg: this.state.kg,
+      kgUp: () => this.setState(st => ({ kg: st.kg + 10 })),
+      kgDn: () => this.setState(st => ({ kg: Math.max(0, st.kg - 10) })),
+      vlText: this.state.vl.toFixed(1).replace('.', ','),
+      vlUp: () => this.setState(st => ({ vl: Math.min(23, st.vl + 0.2) })),
+      vlDn: () => this.setState(st => ({ vl: Math.max(14, st.vl - 0.2) })),
+      lotCode: prefixes[this.state.pasa] + '-260807-01',
+      harvestSaved: this.state.harvestSaved, harvestNot: !this.state.harvestSaved,
+      createHarvest: () => this.setState({ harvestSaved: true }),
+      resetHarvest: () => this.setState({ harvestSaved: false, kg: 286, vl: 17.2 }),
+      dark, darkOff: !dark,
+      toggleDark: () => this.setState({ darkOverride: !dark }),
+      themeVars,
+      goHome: go('home'), goApiaries: go('apiaries'), goHives: go('hives'), goEntry: go('entry'),
+      goObligations: go('obligations'), goHarvest: go('harvest'), goInspection: go('inspection'),
+      isHome: s === 'home', isApiaries: s === 'apiaries', isHives: s === 'hives', isEntry: s === 'entry',
+      isObligations: s === 'obligations', isHarvest: s === 'harvest', isInspection: s === 'inspection',
+      cHome: s === 'home' ? act : idle, cApiaries: s === 'apiaries' ? act : idle, cHives: s === 'hives' ? act : idle,
+      cEntry: s === 'entry' ? act : idle, cObligations: s === 'obligations' ? act : idle,
+      goNewHarvest: go('newharvest'), goQueen: go('queen'), goVarroa: go('varroa'), goInventory: go('inventory'), goSales: go('sales'),
+      isNewHarvest: s === 'newharvest', isQueen: s === 'queen', isVarroa: s === 'varroa', isInventory: s === 'inventory', isSales: s === 'sales',
+      jars: this.state.jars,
+      jarsUp: () => this.setState(st => ({ jars: st.jars + 1 })),
+      jarsDn: () => this.setState(st => ({ jars: Math.max(1, st.jars - 1) })),
+      total: this.state.jars * 12,
+      saleSaved: this.state.saleSaved, saleNot: !this.state.saleSaved,
+      saveSale: () => this.setState({ saleSaved: true }),
+      resetSale: () => this.setState({ saleSaved: false, jars: 12 }),
+      farmName: this.props.farmName ?? 'OPG Matić',
+      deadlineDays: this.props.deadlineDays ?? 116,
+      varroaDays: this.props.varroaDays ?? 47,
+      frames: this.state.frames,
+      inc: () => this.setState(s => ({ frames: Math.min(12, s.frames + 1) })),
+      dec: () => this.setState(s => ({ frames: Math.max(0, s.frames - 1) })),
+      saved: this.state.saved,
+      notSaved: !this.state.saved,
+      save: () => this.setState({ saved: true }),
+      voice: this.state.voice,
+      toggleVoice: () => this.setState(s => ({ voice: !s.voice })),
+      confirmVoice: () => this.setState({ voice: false, saved: true }),
+      nextHive: () => this.setState({ saved: false, voice: false, frames: 8 }),
+    };
+  }
+}
+</script>
+</body>
+</html>
