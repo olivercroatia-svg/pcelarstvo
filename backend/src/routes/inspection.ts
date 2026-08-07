@@ -52,10 +52,46 @@ async function gatherFacts(farmId: string) {
        (SELECT COUNT(*) FROM documents WHERE farm_id = ? AND deleted_at IS NULL) AS documents,
        (SELECT COUNT(*) FROM documents WHERE farm_id = ? AND deleted_at IS NULL AND category = 'registration') AS registration_docs,
        (SELECT COUNT(*) FROM documents WHERE farm_id = ? AND deleted_at IS NULL AND expires_on IS NOT NULL AND expires_on < CURDATE()) AS expired_docs,
-       (SELECT COUNT(*) FROM apiaries WHERE farm_id = ? AND deleted_at IS NULL AND permit_expires_on IS NOT NULL AND permit_expires_on < CURDATE()) AS expired_permits`,
-    Array.from({ length: 13 }, () => farmId),
+       (SELECT COUNT(*) FROM apiaries WHERE farm_id = ? AND deleted_at IS NULL AND permit_expires_on IS NOT NULL AND permit_expires_on < CURDATE()) AS expired_permits,
+
+       -- §28-§31. Quantities in kilograms and LOT codes, never a price: this whole file is the
+       -- screen handed to an inspector, and §26 keeps financial data off it.
+       (SELECT COUNT(*) FROM honey_batches WHERE farm_id = ? AND deleted_at IS NULL) AS batches,
+       (SELECT COUNT(*) FROM honey_batches b
+         WHERE b.farm_id = ? AND b.deleted_at IS NULL
+           AND NOT EXISTS (SELECT 1 FROM harvest_hives hh WHERE hh.harvest_id = b.harvest_id)) AS batches_without_hives,
+       (SELECT COUNT(*) FROM honey_batches b
+         WHERE b.farm_id = ? AND b.deleted_at IS NULL
+           AND EXISTS (SELECT 1 FROM packaging_batches p WHERE p.batch_id = b.id AND p.deleted_at IS NULL)
+           AND NOT EXISTS (SELECT 1 FROM laboratory_tests t WHERE t.batch_id = b.id AND t.deleted_at IS NULL)) AS packed_without_lab,
+       (SELECT COUNT(*) FROM laboratory_tests WHERE farm_id = ? AND deleted_at IS NULL) AS lab_tests,
+       (SELECT COUNT(*) FROM packaging_batches WHERE farm_id = ? AND deleted_at IS NULL) AS packaging_runs,
+       (SELECT COUNT(*) FROM inventory_items
+         WHERE farm_id = ? AND deleted_at IS NULL AND expires_on IS NOT NULL AND expires_on < CURDATE()) AS expired_stock`,
+    Array.from({ length: 19 }, () => farmId),
   )
   return rows[0]!
+}
+
+/**
+ * §28 × §17 — batches whose extraction fell inside a treatment's withdrawal period.
+ *
+ * One query across every batch rather than lib/production.ts's per-harvest version, because the
+ * readiness list needs a count and the inspection screen a yes/no, not a per-batch breakdown.
+ */
+async function batchesInWithdrawal(farmId: string): Promise<number> {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT COUNT(DISTINCT b.id) AS total
+       FROM honey_batches b
+       JOIN harvests h ON h.id = b.harvest_id
+       JOIN veterinary_treatments t
+         ON t.farm_id = b.farm_id AND t.apiary_id = h.apiary_id AND t.deleted_at IS NULL
+        AND t.started_on <= h.harvested_on
+        AND t.withdrawal_until >= h.harvested_on
+      WHERE b.farm_id = ? AND b.deleted_at IS NULL AND h.deleted_at IS NULL`,
+    [farmId],
+  )
+  return Number(rows[0]?.total ?? 0)
 }
 
 async function loadFarm(farmId: string): Promise<RowDataPacket> {
@@ -82,6 +118,7 @@ inspectionRouter.get(
     const farm = await loadFarm(farmId)
     const facts = await gatherFacts(farmId)
     const cards = await buildObligationCards(farmId)
+    const inWithdrawal = await batchesInWithdrawal(farmId)
 
     const [apiaries] = await pool.query<RowDataPacket[]>(
       `SELECT a.id, a.name, a.city, a.kind, a.permit_number, a.permit_expires_on,
@@ -190,9 +227,46 @@ inspectionRouter.get(
         key: 'production',
         title: 'Proizvodnja i sljedivost',
         items: [
-          { label: 'Serije meda i LOT', ok: false, pending: true, detail: 'modul stiže u sljedećoj etapi' },
-          { label: 'Sljedivost staklenka → košnica', ok: false, pending: true, detail: 'modul stiže u sljedećoj etapi' },
-          { label: 'Laboratorijske analize', ok: false, pending: true, detail: 'modul stiže u sljedećoj etapi' },
+          {
+            label: 'Serije meda s LOT oznakom',
+            ok: Number(facts.batches) > 0,
+            detail:
+              Number(facts.batches) === 0
+                ? 'nema evidentiranih serija'
+                : counted(Number(facts.batches), 'serija', 'serije', 'serija'),
+            link: '/serije',
+          },
+          {
+            label: 'Sljedivost serija do košnica',
+            ok: Number(facts.batches) > 0 && Number(facts.batches_without_hives) === 0,
+            detail:
+              Number(facts.batches) === 0
+                ? 'nema evidentiranih serija'
+                : Number(facts.batches_without_hives) === 0
+                  ? 'sve serije povezane s košnicama'
+                  : `${counted(Number(facts.batches_without_hives), 'serija', 'serije', 'serija')} bez povezanih košnica`,
+            link: '/serije',
+          },
+          {
+            label: 'Laboratorijske analize',
+            ok: Number(facts.packed_without_lab) === 0,
+            detail:
+              Number(facts.lab_tests) === 0
+                ? 'nema unesenih nalaza'
+                : Number(facts.packed_without_lab) === 0
+                  ? counted(Number(facts.lab_tests), 'nalaz', 'nalaza', 'nalaza')
+                  : `${counted(Number(facts.packed_without_lab), 'pakirana serija', 'pakirane serije', 'pakiranih serija')} bez nalaza`,
+            link: '/serije',
+          },
+          {
+            label: 'Vrcanje izvan karence',
+            ok: inWithdrawal === 0,
+            detail:
+              inWithdrawal === 0
+                ? 'uredno'
+                : `${counted(inWithdrawal, 'serija je vrcana', 'serije su vrcane', 'serija je vrcano')} unutar karence`,
+            link: '/serije',
+          },
         ],
       },
     ]
@@ -260,6 +334,7 @@ inspectionRouter.get(
     const facts = await gatherFacts(farmId)
     const cards = await buildObligationCards(farmId)
     const overdue = cards.filter((c) => c.kind === 'deadline' && c.level === 'critical')
+    const inWithdrawal = await batchesInWithdrawal(farmId)
 
     const checks: CheckItem[] = [
       {
@@ -348,12 +423,58 @@ inspectionRouter.get(
         detail: overdue.length === 0 ? 'uredno' : overdue.map((c) => c.name).join(', '),
         link: '/obveze',
       },
+      {
+        label: 'Serije meda nose LOT oznaku',
+        ok: Number(facts.batches) > 0,
+        detail:
+          Number(facts.batches) === 0
+            ? 'nema evidentiranih serija'
+            : counted(Number(facts.batches), 'serija', 'serije', 'serija'),
+        link: '/serije',
+      },
+      {
+        label: 'Svaka serija vodi do košnica',
+        ok: Number(facts.batches_without_hives) === 0,
+        detail:
+          Number(facts.batches_without_hives) === 0
+            ? 'uredno'
+            : `${counted(Number(facts.batches_without_hives), 'serija', 'serije', 'serija')} bez povezanih košnica`,
+        link: '/serije',
+      },
+      {
+        label: 'Pakirane serije imaju laboratorijski nalaz',
+        ok: Number(facts.packed_without_lab) === 0,
+        detail:
+          Number(facts.packed_without_lab) === 0
+            ? 'uredno'
+            : `${counted(Number(facts.packed_without_lab), 'serija', 'serije', 'serija')} bez nalaza`,
+        link: '/serije',
+      },
+      {
+        label: 'Nijedno vrcanje nije unutar karence',
+        ok: inWithdrawal === 0,
+        detail:
+          inWithdrawal === 0
+            ? 'uredno'
+            : `${counted(inWithdrawal, 'serija', 'serije', 'serija')} vrcana unutar karence`,
+        link: '/serije',
+      },
+      {
+        label: 'Nema isteklih zaliha VMP-a i prihrane',
+        ok: Number(facts.expired_stock) === 0,
+        detail:
+          Number(facts.expired_stock) === 0
+            ? 'uredno'
+            : `${counted(Number(facts.expired_stock), 'stavka je istekla', 'stavke su istekle', 'stavki je isteklo')}`,
+        link: '/skladiste',
+      },
     ]
 
+    // What genuinely does not exist yet, rather than what has not been built into this list.
+    // Counted neither as a pass nor as a failure, so the percentage stays honest.
     const pending: CheckItem[] = [
-      { label: 'Serije meda i LOT oznake', ok: false, pending: true, detail: 'modul proizvodnje stiže u sljedećoj etapi' },
-      { label: 'Laboratorijski nalazi serija', ok: false, pending: true, detail: 'modul proizvodnje stiže u sljedećoj etapi' },
-      { label: 'Evidencija higijene objekta', ok: false, pending: true, detail: 'modul proizvodnje stiže u sljedećoj etapi' },
+      { label: 'Evidencija prodaje i kupaca', ok: false, pending: true, detail: 'modul prodaje stiže u sljedećoj etapi' },
+      { label: 'Evidencija higijene objekta', ok: false, pending: true, detail: 'modul stiže u sljedećoj etapi' },
     ]
 
     const passed = checks.filter((c) => c.ok).length
