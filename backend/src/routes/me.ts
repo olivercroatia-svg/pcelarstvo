@@ -1,14 +1,35 @@
+import bcrypt from 'bcryptjs'
 import { Router } from 'express'
+import rateLimit from 'express-rate-limit'
 import type { RowDataPacket } from 'mysql2'
 import { z } from 'zod'
 import { pool } from '../db.js'
 import { writeAudit } from '../lib/audit.js'
-import { asyncHandler, notFound } from '../lib/http.js'
+import { buildExport, eraseAccount } from '../lib/gdpr.js'
+import { asyncHandler, badRequest, notFound, unauthorized } from '../lib/http.js'
 import { isValidOib } from '../lib/oib.js'
 import { computeCompleteness } from '../lib/profile.js'
-import { requireAuth } from '../middleware/auth.js'
+import { clearSessionCookie, requireAuth } from '../middleware/auth.js'
 
 export const meRouter = Router()
+
+/**
+ * §56 — tighter than the global ceiling for the two routes that are expensive or irreversible.
+ * An export walks forty tables and a deletion cannot be undone; neither is something anyone does
+ * twice in a minute, and both are worth making unattractive to a script.
+ *
+ * Ten rather than a handful, because the limiter is keyed on the address and shared by both
+ * routes: someone who downloads their data, opens it, downloads it again and then mistypes their
+ * password twice must not find themselves locked out of deleting their own account for an hour.
+ * A right that a rate limiter can withhold is not much of a right.
+ */
+const privacyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Previše zahtjeva. Pokušajte ponovno za sat vremena.' },
+})
 
 export interface CurrentUserPayload {
   user: {
@@ -206,5 +227,91 @@ meRouter.patch(
     })
 
     res.json(after)
+  }),
+)
+
+/**
+ * GDPR čl. 15 and 20 — everything the application holds about you, as a JSON file (§56).
+ *
+ * Delivered as a download rather than a body the SPA renders: the point of the right is that the
+ * file leaves with the person, and a beekeeper who wants to check what is in it can open it in any
+ * text editor. What it contains is decided by lib/gdpr.ts, which is also where §4 applies — a
+ * worker's export is their account and their entries, not the farm's books.
+ */
+meRouter.get(
+  '/export',
+  requireAuth,
+  privacyLimiter,
+  asyncHandler(async (req, res) => {
+    const current = await loadCurrentUser(req.user!.id)
+    const payload = await buildExport(req.user!.id, current.farm?.id ?? null, current.role)
+
+    await writeAudit(req, {
+      userId: req.user!.id,
+      farmId: current.farm?.id ?? null,
+      action: 'gdpr.export',
+      entityType: 'user',
+      entityId: req.user!.id,
+      after: { scope: payload.meta.scope, tables: Object.keys(payload.data).length },
+    })
+
+    const stamp = new Date().toISOString().slice(0, 10)
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="moj-pcelinjak-podaci-${stamp}.json"`)
+    res.send(JSON.stringify(payload, null, 2))
+  }),
+)
+
+const eraseSchema = z.object({
+  password: z.string().min(1, 'Unesite lozinku'),
+  // Typed, not ticked. A checkbox is one mis-tap; a word has to be meant.
+  confirm: z.string(),
+})
+
+const ERASE_WORD = 'OBRIŠI'
+
+/**
+ * GDPR čl. 17 (§56). Two gates before anything happens: the account's own password, and the word
+ * typed out. Neither is theatre — this removes the farm's register along with the account, and the
+ * export above is the only copy the beekeeper will ever get of records they may be legally
+ * required to keep.
+ *
+ * The audit row is written *before* the erasure, while the user still resolves to a name. Writing
+ * it afterwards would file the most consequential action in the application under "Obrisani
+ * korisnik".
+ */
+meRouter.delete(
+  '/',
+  requireAuth,
+  privacyLimiter,
+  asyncHandler(async (req, res) => {
+    const data = eraseSchema.parse(req.body)
+    if (data.confirm.trim().toUpperCase() !== ERASE_WORD) {
+      throw badRequest(`Za potvrdu upišite ${ERASE_WORD}`, 'confirm')
+    }
+
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT password_hash FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+      [req.user!.id],
+    )
+    const row = rows[0]
+    if (!row) throw notFound('Korisnik nije pronađen')
+    if (!(await bcrypt.compare(data.password, row.password_hash as string))) {
+      throw unauthorized('Lozinka nije ispravna')
+    }
+
+    const current = await loadCurrentUser(req.user!.id)
+    await writeAudit(req, {
+      userId: req.user!.id,
+      farmId: current.farm?.id ?? null,
+      action: 'gdpr.erase',
+      entityType: 'user',
+      entityId: req.user!.id,
+      before: { email: current.user.email, role: current.role, farmId: current.farm?.id ?? null },
+    })
+
+    const summary = await eraseAccount(req.user!.id)
+    clearSessionCookie(res)
+    res.json({ ok: true, ...summary })
   }),
 )
