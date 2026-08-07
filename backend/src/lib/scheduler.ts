@@ -13,6 +13,7 @@ import {
 import { counted } from './plural.js'
 import { asDate } from './schema.js'
 import { notify } from './notify.js'
+import { dailySummary } from './summary.js'
 
 /**
  * §24 — the reminder engine, and the producer behind the §53 notification centre.
@@ -306,6 +307,11 @@ async function sweepFarm(farmId: string, today: string): Promise<void> {
       dedupeKey: `stock_low:${row.id}:${weekKey(today)}`,
     })
   }
+
+  // §46 — last, and deliberately so: it summarises the notifications written above, so it has to
+  // run after them. It is also the only step here that can cost money, and it declines to run
+  // itself when the AI layer is off or the farm is at its cap.
+  await dailySummary(farmId, today)
 }
 
 /** ISO-ish week bucket for dedupe keys — "2026-W32". Good enough to fire a reminder once a week. */
