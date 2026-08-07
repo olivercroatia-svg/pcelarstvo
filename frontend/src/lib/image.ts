@@ -1,6 +1,17 @@
 const MAX_EDGE = 1600
 const QUALITY = 0.82
 
+/**
+ * Documents get more pixels than diary photos (§18, §31, §39).
+ *
+ * 1600 px is plenty to see a brood pattern, and nowhere near enough to read the units column of a
+ * laboratory finding or the VAT line of a crumpled receipt. 2400 sits just under the 2576 px long
+ * edge the model accepts, so nothing is thrown away server-side; the higher JPEG quality is there
+ * because compression artefacts on small print are exactly what turns a 7 into a 1.
+ */
+const DOCUMENT_MAX_EDGE = 2400
+const DOCUMENT_QUALITY = 0.9
+
 export interface PreparedImage {
   blob: Blob
   width: number
@@ -14,9 +25,12 @@ export interface PreparedImage {
  * upload happens standing at an apiary with one bar of signal. 1600px on the long edge is enough
  * to see brood pattern or a queen cell, and lands around 200-400 kB.
  */
-export async function prepareImage(file: File): Promise<PreparedImage> {
+export async function prepareImage(file: File, kind: 'photo' | 'document' = 'photo'): Promise<PreparedImage> {
+  const maxEdge = kind === 'document' ? DOCUMENT_MAX_EDGE : MAX_EDGE
+  const quality = kind === 'document' ? DOCUMENT_QUALITY : QUALITY
+
   const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height))
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height))
   const width = Math.round(bitmap.width * scale)
   const height = Math.round(bitmap.height * scale)
 
@@ -30,7 +44,7 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
   bitmap.close()
 
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, 'image/jpeg', QUALITY),
+    canvas.toBlob(resolve, 'image/jpeg', quality),
   )
   if (!blob) throw new Error('Sliku nije moguće obraditi')
 
@@ -41,6 +55,8 @@ export async function uploadPhoto(
   file: File,
   entityType: 'hive_inspection' | 'hive' | 'apiary',
   entityId: string,
+  /** §44 — the caption, once the beekeeper has confirmed it. Never sent unconfirmed. */
+  caption?: string | null,
 ): Promise<void> {
   const { blob, width, height } = await prepareImage(file)
 
@@ -50,6 +66,7 @@ export async function uploadPhoto(
   form.append('entityId', entityId)
   form.append('width', String(width))
   form.append('height', String(height))
+  if (caption?.trim()) form.append('caption', caption.trim())
 
   // Not routed through lib/api: that helper sets a JSON content type, and multipart needs the
   // browser to generate its own boundary.
